@@ -4,10 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-
-	"docsncode/cfg"
-	"docsncode/html"
 )
 
 // @docsncode_comment_block_start
@@ -18,35 +14,22 @@ import (
 func main() {
 	log.SetOutput(os.Stderr)
 
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: docsncode <path-to-file>")
+	// TODO: make path-to-result-dir optional
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: docsncode <path-to-project-root> <path-to-result-dir>")
 		return
 	}
-	filePath := os.Args[1]
+	pathToProjectRoot := os.Args[1]
+	pathToResultDir := os.Args[2]
 
-	fileExtension := filepath.Ext(filePath)
-
-	log.Printf("File extension is: %s\n", fileExtension)
-
-	languageInfo, err := cfg.GetLanguageInfo(fileExtension)
+	err := os.MkdirAll(pathToResultDir, 0755)
 	if err != nil {
-		log.Fatalf("error on getting language info: %v", err)
-	}
-	log.Printf("Building html for %s\n", languageInfo.Language)
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Fatalf("couldn't open file: %v", err)
-	}
-	defer file.Close()
-
-	html, err := html.BuildHTML(file, *languageInfo)
-	if err != nil {
-		log.Fatalf("error on bulding HTML: %v", err)
+		log.Fatalf("error on creating result directory: %v", err)
 	}
 
-	_, err = html.WriteTo(os.Stdout)
+	err = buildDocsncode(pathToProjectRoot, pathToResultDir)
 	if err != nil {
-		log.Fatalf("error on writing HTML to stdout: %v", err)
+		log.Fatalf("error on building docsncode: %v", err)
 	}
+	log.Printf("written result to %s\n", pathToResultDir)
 }
