@@ -1,3 +1,4 @@
-docsncode
+!docsncode/
 !docsncode.go
+docsncode/docsncode
 *.html
