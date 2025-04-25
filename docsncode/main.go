@@ -8,7 +8,8 @@ import (
 
 // @docsncode_comment_block_start
 // This is a comment block
-// It can be multiline
+//
+// It can be multiline, contain [links](https://example.com) and images ![cat](../images/cat.png)
 // @docsncode_comment_block_end
 
 func main() {
@@ -27,6 +28,9 @@ func main() {
 		log.Fatalf("error on creating result directory: %v", err)
 	}
 
+	// @docsncode_comment_block_start
+	// Here we use function from [html.go](html/html.go.html)
+	// @docsncode_comment_block_end
 	err = buildDocsncode(pathToProjectRoot, pathToResultDir)
 	if err != nil {
 		log.Fatalf("error on building docsncode: %v", err)

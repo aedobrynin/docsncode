@@ -3,13 +3,18 @@ package html
 import (
 	"bufio"
 	"bytes"
-	"docsncode/cfg"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/gomarkdown/markdown"
+	"github.com/gomarkdown/markdown/html"
+	"github.com/gomarkdown/markdown/parser"
+
+	"docsncode/cfg"
 )
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
@@ -18,7 +23,6 @@ var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE htm
 <head>
     <style>
         .code_block { font-size: 16px; color: black; }
-        .comment { font-size: 16px; color: red; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,7 +33,7 @@ var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE htm
 			</p>
         {{else if eq .Type 1}}
             <p>
-				<pre class="comment">{{.Content}}</pre>
+				{{.Content}}
 			</p>
         {{end}}
     {{end}}
@@ -46,7 +50,7 @@ const (
 
 type Block struct {
 	Type    BlockType
-	Content bytes.Buffer
+	Content string
 }
 
 var (
@@ -73,19 +77,15 @@ func isCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
 	return strings.HasPrefix(line, cfg.COMMENT_BLOCK_END_TOKEN)
 }
 
-// Assumes that comment block start line is already parsed
-func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) (*Block, error) {
-	log.Println("Started parsing comment block")
-	buf := bytes.NewBuffer([]byte{})
+func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
+	log.Println("Start parsing comment block")
+	var content []byte
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if isCommentBlockEnd(line, languageInfo) {
-			log.Println("Found comment block end, stop parsing comment block")
-			return &Block{
-				Type:    Comment,
-				Content: *buf,
-			}, nil
+			log.Println("Found comment block end, stop parsing comment block raw content")
+			return content, nil
 		}
 
 		line = strings.TrimSpace(line)
@@ -94,57 +94,90 @@ func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) (*
 		}
 		line = strings.TrimPrefix(line, languageInfo.OneLineCommentStartToken)
 		// TODO: trim leading spaces?
-		if buf.Len() != 0 {
-			// TODO: check error
-			buf.WriteRune('\n')
+		if len(content) != 0 {
+			content = append(content, '\n')
 		}
-		// TODO: check error
-		buf.WriteString(line)
+		content = append(content, line...)
 	}
 
 	return nil, ErrCommentBlockEndNotFound
 }
 
+func convertMarkdownToHTML(md []byte) []byte {
+	// TODO: поддержка ссылок с абсолютным путём относительно корня проекта
+	// TODO: убрать необходимость добавления .html для ссылки
+	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
+	p := parser.NewWithExtensions(extensions)
+	doc := p.Parse(md)
+
+	htmlFlags := html.CommonFlags | html.HrefTargetBlank
+	opts := html.RendererOptions{Flags: htmlFlags}
+	renderer := html.NewRenderer(opts)
+
+	return markdown.Render(doc, renderer)
+}
+
+// Assumes that comment block start line is already parsed
+func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) (*Block, error) {
+	// TODO: учитывать отступ всего блока с комментарием
+
+	log.Println("Start parsing and building comment block")
+	rawContent, err := parseCommentBlock(scanner, languageInfo)
+	if err != nil {
+		return nil, fmt.Errorf("error on parsing comment block: %w", err)
+	}
+
+	htmlContent := convertMarkdownToHTML(rawContent)
+	return &Block{
+		Type:    Comment,
+		Content: string(htmlContent),
+	}, nil
+}
+
+// TODO: нужен ли тут bytes.Buffer или достаточно []byte?
 func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo) (*bytes.Buffer, error) {
 	blocks := []Block{}
 	scanner := bufio.NewScanner(file)
 
-	var current_code_block *Block
+	var current_code_block_content []byte
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		if isCommentBlockStart(line, languageInfo) {
 			log.Println("Found comment block start")
-			if current_code_block != nil {
+			if current_code_block_content != nil {
 				log.Println("Append current code block")
-				blocks = append(blocks, *current_code_block)
-				current_code_block = nil
+				blocks = append(blocks, Block{
+					Type: Code,
+					// TODO: use unsafe?
+					Content: string(current_code_block_content),
+				})
+				current_code_block_content = nil
 			}
 
-			block, err := parseCommentBlock(scanner, languageInfo)
+			block, err := parseAndBuildCommentBlock(scanner, languageInfo)
 			if err != nil {
 				return nil, fmt.Errorf("error on parsing comment block: %w", err)
 			}
 			blocks = append(blocks, *block)
 		} else {
-			if current_code_block == nil {
-				current_code_block = &Block{
-					Type:    Code,
-					Content: *bytes.NewBufferString(line),
-				}
+			if current_code_block_content == nil {
+				current_code_block_content = []byte(line)
 			} else {
-				// TODO: check error
-				current_code_block.Content.WriteRune('\n')
-				// TODO: check error
-				current_code_block.Content.WriteString(line)
+				current_code_block_content = append(current_code_block_content, '\n')
+				current_code_block_content = append(current_code_block_content, line...)
 			}
 		}
 	}
 
-	if current_code_block != nil {
+	if current_code_block_content != nil {
 		log.Println("Append final code block")
-		blocks = append(blocks, *current_code_block)
-		current_code_block = nil
+		blocks = append(blocks, Block{
+			Type: Code,
+			// TODO: use unsafe?
+			Content: string(current_code_block_content),
+		})
+		current_code_block_content = nil
 	}
 
 	if err := scanner.Err(); err != nil {

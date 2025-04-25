@@ -10,6 +10,7 @@ var (
 	EXTENSION_TO_LANGUAGE_MAPPING            = map[string]string{".go": "Golang"}
 	LANGUAGE_TO_ONE_LINE_COMMENT_START_TOKEN = map[string]string{"Golang": "//"}
 
+	// TODO: достаточно тяжело это писать в коде, подумать над сокращением
 	COMMENT_BLOCK_START_TOKEN = "@docsncode_comment_block_start"
 	COMMENT_BLOCK_END_TOKEN   = "@docsncode_comment_block_end"
 )
