@@ -13,6 +13,8 @@ import (
 	"docsncode/cfg"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/util"
 )
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
@@ -104,8 +106,15 @@ func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([
 func convertMarkdownToHTML(md []byte) ([]byte, error) {
 	// TODO: поддержка ссылок с абсолютным путём относительно корня проекта
 	// TODO: убрать необходимость добавления .html для ссылки
+
+	converter := goldmark.New(
+		goldmark.WithParserOptions(
+			parser.WithASTTransformers(util.Prioritized(LinksResolverTransformer, 0)),
+		),
+	)
+
 	var buf bytes.Buffer
-	if err := goldmark.Convert(md, &buf); err != nil {
+	if err := converter.Convert(md, &buf); err != nil {
 		return nil, fmt.Errorf("error on converting markdown to HTML: %v", err)
 	}
 	return buf.Bytes(), nil
