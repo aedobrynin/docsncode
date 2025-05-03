@@ -9,7 +9,11 @@ import (
 // @docsncode_comment_block_start
 // This is a comment block
 //
-// It can be multiline, contain [links](https://example.com) and images ![cat](../images/cat.png)
+// It can be multiline, contain [links](https://example.com) and images ![cat](images/cat.png)
+//
+// This image is taken from this [file](images/cat.png)
+//
+// This [link](https://example.com "link with a title") has a title
 // @docsncode_comment_block_end
 
 func main() {
@@ -29,7 +33,7 @@ func main() {
 	}
 
 	// @docsncode_comment_block_start
-	// Here we use function from [html.go](html/html.go.html)
+	// Here we use function from [html.go](html/html.go)
 	// @docsncode_comment_block_end
 	err = buildDocsncode(pathToProjectRoot, pathToResultDir)
 	if err != nil {
