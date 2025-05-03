@@ -13,6 +13,8 @@ import (
 	"docsncode/cfg"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/util"
 )
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
@@ -101,18 +103,26 @@ func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([
 	return nil, ErrCommentBlockEndNotFound
 }
 
-func convertMarkdownToHTML(md []byte) ([]byte, error) {
+func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) ([]byte, error) {
 	// TODO: поддержка ссылок с абсолютным путём относительно корня проекта
 	// TODO: убрать необходимость добавления .html для ссылки
+
+	// TODO: не создавать новый конвертер на каждый файл
+	converter := goldmark.New(
+		goldmark.WithParserOptions(
+			parser.WithASTTransformers(util.Prioritized(&linksResolverTransformer{absPathToProjectRoot: absPathToProjectRoot, absPathToResultDir: absPathToResultDir, absPathToResultFile: absPathToResultFile}, 0)),
+		),
+	)
+
 	var buf bytes.Buffer
-	if err := goldmark.Convert(md, &buf); err != nil {
+	if err := converter.Convert(md, &buf); err != nil {
 		return nil, fmt.Errorf("error on converting markdown to HTML: %v", err)
 	}
 	return buf.Bytes(), nil
 }
 
 // Assumes that comment block start line is already parsed
-func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) (*Block, error) {
+func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) (*Block, error) {
 	// TODO: учитывать отступ всего блока с комментарием
 
 	log.Println("Start parsing and building comment block")
@@ -121,7 +131,7 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 		return nil, fmt.Errorf("error on parsing comment block: %w", err)
 	}
 
-	htmlContent, err := convertMarkdownToHTML(rawContent)
+	htmlContent, err := convertMarkdownToHTML(rawContent, absPathToProjectRoot, absPathToResultDir, absPathToResultFile)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +142,7 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 }
 
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
-func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo) (*bytes.Buffer, error) {
+func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
 	blocks := []Block{}
 	scanner := bufio.NewScanner(file)
 
@@ -152,7 +162,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo) (*bytes.Buffer, err
 				current_code_block_content = nil
 			}
 
-			block, err := parseAndBuildCommentBlock(scanner, languageInfo)
+			block, err := parseAndBuildCommentBlock(scanner, languageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile)
 			if err != nil {
 				return nil, fmt.Errorf("error on parsing comment block: %w", err)
 			}
