@@ -10,11 +10,9 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/gomarkdown/markdown"
-	"github.com/gomarkdown/markdown/html"
-	"github.com/gomarkdown/markdown/parser"
-
 	"docsncode/cfg"
+
+	"github.com/yuin/goldmark"
 )
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
@@ -103,18 +101,14 @@ func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([
 	return nil, ErrCommentBlockEndNotFound
 }
 
-func convertMarkdownToHTML(md []byte) []byte {
+func convertMarkdownToHTML(md []byte) ([]byte, error) {
 	// TODO: поддержка ссылок с абсолютным путём относительно корня проекта
 	// TODO: убрать необходимость добавления .html для ссылки
-	extensions := parser.CommonExtensions | parser.AutoHeadingIDs | parser.NoEmptyLineBeforeBlock
-	p := parser.NewWithExtensions(extensions)
-	doc := p.Parse(md)
-
-	htmlFlags := html.CommonFlags | html.HrefTargetBlank
-	opts := html.RendererOptions{Flags: htmlFlags}
-	renderer := html.NewRenderer(opts)
-
-	return markdown.Render(doc, renderer)
+	var buf bytes.Buffer
+	if err := goldmark.Convert(md, &buf); err != nil {
+		return nil, fmt.Errorf("error on converting markdown to HTML: %v", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // Assumes that comment block start line is already parsed
@@ -127,7 +121,10 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 		return nil, fmt.Errorf("error on parsing comment block: %w", err)
 	}
 
-	htmlContent := convertMarkdownToHTML(rawContent)
+	htmlContent, err := convertMarkdownToHTML(rawContent)
+	if err != nil {
+		return nil, err
+	}
 	return &Block{
 		Type:    Comment,
 		Content: string(htmlContent),
