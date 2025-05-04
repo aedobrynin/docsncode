@@ -17,6 +17,8 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// TODO: порефакторить код с парсингом блоков
+
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
 var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
@@ -57,7 +59,7 @@ var (
 	ErrCommentBlockEndNotFound = errors.New("didn't see comment block end")
 )
 
-func isCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
+func isOneLineCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
 	line = strings.TrimSpace(line)
 	if !strings.HasPrefix(line, languageInfo.OneLineCommentStartToken) {
 		return false
@@ -67,7 +69,7 @@ func isCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
 	return strings.HasPrefix(line, cfg.COMMENT_BLOCK_START_TOKEN)
 }
 
-func isCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
+func isOneLineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
 	line = strings.TrimSpace(line)
 	if !strings.HasPrefix(line, languageInfo.OneLineCommentStartToken) {
 		return false
@@ -77,13 +79,41 @@ func isCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
 	return strings.HasPrefix(line, cfg.COMMENT_BLOCK_END_TOKEN)
 }
 
-func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
-	log.Println("Start parsing comment block")
+func isMultilineCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
+	if languageInfo.MultilineCommentInfo == nil {
+		return false
+	}
+
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, languageInfo.MultilineCommentInfo.StartToken) {
+		return false
+	}
+	line = strings.TrimPrefix(line, languageInfo.MultilineCommentInfo.StartToken)
+	line = strings.TrimSpace(line)
+	return strings.HasPrefix(line, cfg.COMMENT_BLOCK_START_TOKEN)
+}
+
+func isMultilineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
+	if languageInfo.MultilineCommentInfo == nil {
+		return false
+	}
+
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, cfg.COMMENT_BLOCK_END_TOKEN) {
+		return false
+	}
+	line = strings.TrimPrefix(line, cfg.COMMENT_BLOCK_END_TOKEN)
+	line = strings.TrimSpace(line)
+	return strings.HasPrefix(line, languageInfo.MultilineCommentInfo.EndToken)
+}
+
+func parseOneLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
+	log.Println("Start parsing one line comment block")
 	var content []byte
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if isCommentBlockEnd(line, languageInfo) {
+		if isOneLineCommentBlockEnd(line, languageInfo) {
 			log.Println("Found comment block end, stop parsing comment block raw content")
 			return content, nil
 		}
@@ -94,6 +124,28 @@ func parseCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([
 		}
 		line = strings.TrimPrefix(line, languageInfo.OneLineCommentStartToken)
 		// TODO: trim leading spaces?
+		if len(content) != 0 {
+			content = append(content, '\n')
+		}
+		content = append(content, line...)
+	}
+
+	return nil, ErrCommentBlockEndNotFound
+}
+
+func parseMultilineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
+	log.Println("Start parsing multiline comment block")
+	var content []byte
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if isMultilineCommentBlockEnd(line, languageInfo) {
+			log.Println("Found multiline comment block end, stop parsing comment block raw content")
+			return content, nil
+		}
+
+		// TODO: поддержка отступов
+		line = strings.TrimSpace(line)
 		if len(content) != 0 {
 			content = append(content, '\n')
 		}
@@ -122,11 +174,19 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToResultDir, 
 }
 
 // Assumes that comment block start line is already parsed
-func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) (*Block, error) {
+func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
 	// TODO: учитывать отступ всего блока с комментарием
+	log.Printf("Start parsing and building comment block, isMultiline=%t\n", isMultiline)
 
-	log.Println("Start parsing and building comment block")
-	rawContent, err := parseCommentBlock(scanner, languageInfo)
+	var rawContent []byte
+	var err error
+
+	if isMultiline {
+		rawContent, err = parseMultilineCommentBlock(scanner, languageInfo)
+	} else {
+		rawContent, err = parseOneLineCommentBlock(scanner, languageInfo)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error on parsing comment block: %w", err)
 	}
@@ -150,8 +210,12 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if isCommentBlockStart(line, languageInfo) {
-			log.Println("Found comment block start")
+
+		isOneLineCommentBlockStart := isOneLineCommentBlockStart(line, languageInfo)
+		isMultilineCommentBlockStart := isMultilineCommentBlockStart(line, languageInfo)
+
+		if isOneLineCommentBlockStart || isMultilineCommentBlockStart {
+			log.Println("Found one line comment block start")
 			if current_code_block_content != nil {
 				log.Println("Append current code block")
 				blocks = append(blocks, Block{
@@ -162,7 +226,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 				current_code_block_content = nil
 			}
 
-			block, err := parseAndBuildCommentBlock(scanner, languageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile)
+			block, err := parseAndBuildCommentBlock(scanner, languageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile, isMultilineCommentBlockStart)
 			if err != nil {
 				return nil, fmt.Errorf("error on parsing comment block: %w", err)
 			}
