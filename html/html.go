@@ -20,6 +20,7 @@ import (
 // TODO: порефакторить код с парсингом блоков
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
+// TODO: поправить отступы в HTML
 var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
 <head>
@@ -59,22 +60,22 @@ var (
 	ErrCommentBlockEndNotFound = errors.New("didn't see comment block end")
 )
 
-func isOneLineCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
+func isSingleLineCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
 	line = strings.TrimSpace(line)
-	if !strings.HasPrefix(line, languageInfo.OneLineCommentStartToken) {
+	if !strings.HasPrefix(line, languageInfo.SingleLineCommentStartToken) {
 		return false
 	}
-	line = strings.TrimPrefix(line, languageInfo.OneLineCommentStartToken)
+	line = strings.TrimPrefix(line, languageInfo.SingleLineCommentStartToken)
 	line = strings.TrimSpace(line)
 	return strings.HasPrefix(line, cfg.COMMENT_BLOCK_START_TOKEN)
 }
 
-func isOneLineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
+func isSingleLineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool {
 	line = strings.TrimSpace(line)
-	if !strings.HasPrefix(line, languageInfo.OneLineCommentStartToken) {
+	if !strings.HasPrefix(line, languageInfo.SingleLineCommentStartToken) {
 		return false
 	}
-	line = strings.TrimPrefix(line, languageInfo.OneLineCommentStartToken)
+	line = strings.TrimPrefix(line, languageInfo.SingleLineCommentStartToken)
 	line = strings.TrimSpace(line)
 	return strings.HasPrefix(line, cfg.COMMENT_BLOCK_END_TOKEN)
 }
@@ -107,22 +108,22 @@ func isMultilineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool
 	return strings.HasPrefix(line, languageInfo.MultilineCommentInfo.EndToken)
 }
 
-func parseOneLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
-	log.Println("Start parsing one line comment block")
+func parseSingleLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
+	log.Println("Start parsing single line comment block")
 	var content []byte
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if isOneLineCommentBlockEnd(line, languageInfo) {
+		if isSingleLineCommentBlockEnd(line, languageInfo) {
 			log.Println("Found comment block end, stop parsing comment block raw content")
 			return content, nil
 		}
 
 		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, languageInfo.OneLineCommentStartToken) {
+		if !strings.HasPrefix(line, languageInfo.SingleLineCommentStartToken) {
 			log.Println("Line doesn't have comment start token even though we're inside comments block")
 		}
-		line = strings.TrimPrefix(line, languageInfo.OneLineCommentStartToken)
+		line = strings.TrimPrefix(line, languageInfo.SingleLineCommentStartToken)
 		// TODO: trim leading spaces?
 		if len(content) != 0 {
 			content = append(content, '\n')
@@ -184,7 +185,7 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 	if isMultiline {
 		rawContent, err = parseMultilineCommentBlock(scanner, languageInfo)
 	} else {
-		rawContent, err = parseOneLineCommentBlock(scanner, languageInfo)
+		rawContent, err = parseSingleLineCommentBlock(scanner, languageInfo)
 	}
 
 	if err != nil {
@@ -211,11 +212,11 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		isOneLineCommentBlockStart := isOneLineCommentBlockStart(line, languageInfo)
+		isSingleLineCommentBlockStart := isSingleLineCommentBlockStart(line, languageInfo)
 		isMultilineCommentBlockStart := isMultilineCommentBlockStart(line, languageInfo)
 
-		if isOneLineCommentBlockStart || isMultilineCommentBlockStart {
-			log.Println("Found one line comment block start")
+		if isSingleLineCommentBlockStart || isMultilineCommentBlockStart {
+			log.Println("Found single line comment block start")
 			if current_code_block_content != nil {
 				log.Println("Append current code block")
 				blocks = append(blocks, Block{

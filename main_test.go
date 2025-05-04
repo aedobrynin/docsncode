@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
 	compare "github.com/kilianpaquier/compare/pkg"
@@ -8,12 +9,12 @@ import (
 )
 
 // TODO: tests
-// 1. test file with code
-// 2. test file with one line comment block
-// 3. test file with one line comment block and code
+// 1. test file with code (done)
+// 2. test file with one line comment block (done)
+// 3. test file with one line comment block and code (done)
 // 4. test file with several one line comment blocks and code
 // 5. test file with multiline comment block
-// 6. test file with multiline comment block and code
+// 6. test file with multiline comment block and code (done)
 // 7. test file with several multiline line comment blocks and code
 // 8. test file with several one line comment blocks, several multiline comment blocks and code
 // 9. test link with absolute path to file that will have result file
@@ -28,27 +29,41 @@ import (
 // 18. test many files in project
 // 19. test allowed extensions
 // tests 1-8 should be duplicated for every programming language with different comments syntax
+// tests for errors
 
 func TestMain(t *testing.T) {
 	for _, tc := range []struct {
-		name                    string
-		pathToProjectRoot       string
-		pathToExpectedResultDir string
-		expectedError           error
-	}{{
-		name:                    "c_style_comments/one_file_with_code",
-		pathToProjectRoot:       "tests/c_style_comments/one_file_with_code/project",
-		pathToExpectedResultDir: "tests/c_style_comments/one_file_with_code/expected_result",
-		expectedError:           nil,
-	}} {
+		name          string
+		expectedError error
+	}{
+		{
+			name:          "c_style_comments/file_with_code",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_single_line_comment_block",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
+			expectedError: nil,
+		},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
+			pathToProjectRoot := filepath.Join("tests", tc.name, "project")
+			pathToExpectedResultDir := filepath.Join("tests", tc.name, "expected_result")
+
 			resultDir := t.TempDir()
 
-			err := buildDocsncode(tc.pathToProjectRoot, resultDir)
+			err := buildDocsncode(pathToProjectRoot, resultDir)
 
 			require.Equal(t, err, tc.expectedError)
 
-			err = compare.Dirs(tc.pathToExpectedResultDir, resultDir)
+			err = compare.Dirs(pathToExpectedResultDir, resultDir)
 			require.NoError(t, err)
 		})
 	}
