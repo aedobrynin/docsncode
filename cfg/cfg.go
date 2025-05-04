@@ -7,9 +7,9 @@ import (
 
 // TODO: унести всё в yaml-конфиг
 var (
-	EXTENSION_TO_LANGUAGE_MAPPING            = map[string]string{".go": "Golang"}
-	LANGUAGE_TO_ONE_LINE_COMMENT_START_TOKEN = map[string]string{"Golang": "//"}
-	LANGUAGE_TO_MULTILINE_COMMENT_INFO       = map[string]*MultilineCommentInfo{"Golang": &MultilineCommentInfo{
+	EXTENSION_TO_LANGUAGE_MAPPING               = map[string]string{".go": "Golang", ".txt": "Text"}
+	LANGUAGE_TO_SINGLE_LINE_COMMENT_START_TOKEN = map[string]string{"Golang": "//", "Text": "//"}
+	LANGUAGE_TO_MULTILINE_COMMENT_INFO          = map[string]*MultilineCommentInfo{"Golang": {
 		StartToken: "/*",
 		EndToken:   "*/",
 	}}
@@ -29,9 +29,9 @@ type MultilineCommentInfo struct {
 }
 
 type LanguageInfo struct {
-	Language                 string
-	OneLineCommentStartToken string
-	MultilineCommentInfo     *MultilineCommentInfo
+	Language                    string
+	SingleLineCommentStartToken string
+	MultilineCommentInfo        *MultilineCommentInfo
 }
 
 func GetLanguageInfo(file_extension string) (*LanguageInfo, error) {
@@ -40,15 +40,15 @@ func GetLanguageInfo(file_extension string) (*LanguageInfo, error) {
 		return nil, ErrExtensionNotSupported
 	}
 
-	oneLineCommentStartToken, isPresent := LANGUAGE_TO_ONE_LINE_COMMENT_START_TOKEN[language]
+	singleLineCommentStartToken, isPresent := LANGUAGE_TO_SINGLE_LINE_COMMENT_START_TOKEN[language]
 	if !isPresent {
-		log.Fatalf("Language is listed in extensions mapping, but not found in one line comment start token mapping")
+		log.Fatalf("Language is listed in extensions mapping, but not found in single line comment start token mapping")
 	}
 
 	multilineCommentInfo := LANGUAGE_TO_MULTILINE_COMMENT_INFO[language]
 	return &LanguageInfo{
-		Language:                 language,
-		OneLineCommentStartToken: oneLineCommentStartToken,
-		MultilineCommentInfo:     multilineCommentInfo,
+		Language:                    language,
+		SingleLineCommentStartToken: singleLineCommentStartToken,
+		MultilineCommentInfo:        multilineCommentInfo,
 	}, nil
 }
