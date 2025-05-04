@@ -11,7 +11,7 @@ import (
 	"docsncode/utils"
 )
 
-func buildDocsncodeForFile(path, absResultPath, absPathToResultDir, absPathToProjectRoot string) error {
+func buildDocsncodeForFile(path, absResultPath, absPathToCurrentFile, absPathToResultDir, absPathToProjectRoot string) error {
 	// TODO: не запускать билд, если текущий результат актуален
 
 	fileExtension := filepath.Ext(path)
@@ -29,7 +29,7 @@ func buildDocsncodeForFile(path, absResultPath, absPathToResultDir, absPathToPro
 	}
 	defer file.Close()
 
-	html, err := html.BuildHTML(file, *languageInfo, absPathToProjectRoot, absPathToResultDir, absResultPath)
+	html, err := html.BuildHTML(file, *languageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absResultPath)
 	if err != nil {
 		return fmt.Errorf("error on bulding HTML for %s: %w", path, err)
 	}
@@ -111,7 +111,7 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string) error {
 			return nil
 		}
 
-		err = buildDocsncodeForFile(path, targetPath, pathToResultDir, pathToProjectRoot)
+		err = buildDocsncodeForFile(path, targetPath, absolutePathToEntry, pathToResultDir, pathToProjectRoot)
 		if err != nil {
 			log.Printf("error on building docsncode for %s: %v", path, err)
 			return nil
