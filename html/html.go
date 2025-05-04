@@ -156,14 +156,19 @@ func parseMultilineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Languag
 	return nil, ErrCommentBlockEndNotFound
 }
 
-func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) ([]byte, error) {
+func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) ([]byte, error) {
 	// TODO: поддержка ссылок с абсолютным путём относительно корня проекта
 	// TODO: убрать необходимость добавления .html для ссылки
 
 	// TODO: не создавать новый конвертер на каждый файл
 	converter := goldmark.New(
 		goldmark.WithParserOptions(
-			parser.WithASTTransformers(util.Prioritized(&linksResolverTransformer{absPathToProjectRoot: absPathToProjectRoot, absPathToResultDir: absPathToResultDir, absPathToResultFile: absPathToResultFile}, 0)),
+			parser.WithASTTransformers(util.Prioritized(&linksResolverTransformer{
+				absPathToProjectRoot: absPathToProjectRoot,
+				absPathToCurrentFile: absPathToCurrentFile,
+				absPathToResultDir:   absPathToResultDir,
+				absPathToResultFile:  absPathToResultFile,
+			}, 0)),
 		),
 	)
 
@@ -175,7 +180,7 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToResultDir, 
 }
 
 // Assumes that comment block start line is already parsed
-func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
+func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
 	// TODO: учитывать отступ всего блока с комментарием
 	log.Printf("Start parsing and building comment block, isMultiline=%t\n", isMultiline)
 
@@ -192,7 +197,7 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 		return nil, fmt.Errorf("error on parsing comment block: %w", err)
 	}
 
-	htmlContent, err := convertMarkdownToHTML(rawContent, absPathToProjectRoot, absPathToResultDir, absPathToResultFile)
+	htmlContent, err := convertMarkdownToHTML(rawContent, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +208,7 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 }
 
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
-func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
+func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
 	blocks := []Block{}
 	scanner := bufio.NewScanner(file)
 
@@ -227,7 +232,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 				current_code_block_content = nil
 			}
 
-			block, err := parseAndBuildCommentBlock(scanner, languageInfo, absPathToProjectRoot, absPathToResultDir, absPathToResultFile, isMultilineCommentBlockStart)
+			block, err := parseAndBuildCommentBlock(scanner, languageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile, isMultilineCommentBlockStart)
 			if err != nil {
 				return nil, fmt.Errorf("error on parsing comment block: %w", err)
 			}

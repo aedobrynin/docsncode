@@ -14,6 +14,7 @@ import (
 
 type linksResolverTransformer struct {
 	absPathToProjectRoot string
+	absPathToCurrentFile string
 	absPathToResultDir   string
 	absPathToResultFile  string
 }
@@ -39,17 +40,16 @@ func isPathNested(parentPath, childPath string) bool {
 	return filepath.IsAbs(childAbsPath) && filepath.HasPrefix(childAbsPath, parentAbsPath)
 }
 
-func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToResultDir, absPathToResultFile string) []byte {
+func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) []byte {
 	pathString := string(path)
 	if isURL(pathString) {
 		log.Printf("Destination is URL")
 		return path
 	}
 
-	absPath, err := filepath.Abs(pathString)
-	if err != nil {
-		log.Printf("error on getting absolute path: %s; won't update the path", err)
-		return path
+	absPath := pathString
+	if !filepath.IsAbs(absPath) {
+		absPath = filepath.Join(filepath.Dir(absPathToCurrentFile), absPath)
 	}
 
 	log.Printf("absPath=%s\n", absPath)
@@ -66,7 +66,7 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToResultDir, absPa
 	log.Println("path is nested")
 
 	// TODO: переделать на нормальную функцию
-	_, err = cfg.GetLanguageInfo(filepath.Ext(absPath))
+	_, err := cfg.GetLanguageInfo(filepath.Ext(absPath))
 	if err == nil {
 		log.Println("path will have result file")
 		resultPath, err := utils.ConvertToPathInResultDir(absPathToProjectRoot, absPath, true, absPathToResultDir)
@@ -74,7 +74,13 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToResultDir, absPa
 			log.Printf("error on getting relative path for %s, %s: %s", absPathToResultFile, absPath, err)
 			return path
 		}
-		return []byte(resultPath)
+
+		relResultPath, err := filepath.Rel(filepath.Dir(absPathToResultFile), resultPath)
+		if err != nil {
+			log.Printf("error on getting relative path for %s, %s: %s", filepath.Dir(absPathToResultFile), resultPath, err)
+			return path
+		}
+		return []byte(relResultPath)
 	}
 
 	relPath, err := filepath.Rel(absPathToResultDir, absPath)
@@ -98,7 +104,7 @@ func (t *linksResolverTransformer) traverseChildren(node ast.Node) {
 	if node.Kind() == ast.KindImage {
 		img := node.(*ast.Image)
 		log.Printf("Found image with destination=%s", img.Destination)
-		img.Destination = getUpdatedPath(img.Destination, t.absPathToProjectRoot, t.absPathToResultDir, t.absPathToResultFile)
+		img.Destination = getUpdatedPath(img.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
 		log.Printf("Updated destination is %s", img.Destination)
 		return
 	}
@@ -106,7 +112,7 @@ func (t *linksResolverTransformer) traverseChildren(node ast.Node) {
 	if node.Kind() == ast.KindLink {
 		link := node.(*ast.Link)
 		log.Printf("Found link with destination=%s", link.Destination)
-		link.Destination = getUpdatedPath(link.Destination, t.absPathToProjectRoot, t.absPathToResultDir, t.absPathToResultFile)
+		link.Destination = getUpdatedPath(link.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
 		log.Printf("Updated destination is %s", link.Destination)
 		return
 	}
