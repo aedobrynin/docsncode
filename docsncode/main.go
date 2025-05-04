@@ -6,15 +6,15 @@ import (
 	"os"
 )
 
-// @docsncode_comment_block_start
+// @docsncode
 // This is a comment block
 //
-// It can be multiline, contain [links](https://example.com) and images ![cat](images/cat.png)
+// It can contain [links](https://example.com) and images ![cat](images/cat.png)
 //
 // This image is taken from this [file](images/cat.png)
 //
 // This [link](https://example.com "link with a title") has a title
-// @docsncode_comment_block_end
+// @docsncode
 
 func main() {
 	log.SetOutput(os.Stderr)
@@ -32,12 +32,28 @@ func main() {
 		log.Fatalf("error on creating result directory: %v", err)
 	}
 
-	// @docsncode_comment_block_start
+	// @docsncode
 	// Here we use function from [html.go](html/html.go)
-	// @docsncode_comment_block_end
+	// @docsncode
 	err = buildDocsncode(pathToProjectRoot, pathToResultDir)
 	if err != nil {
 		log.Fatalf("error on building docsncode: %v", err)
 	}
 	log.Printf("written result to %s\n", pathToResultDir)
+
+	/* @docsncode
+	This is an example of multiline comment.
+
+	It is
+
+	very
+
+	very
+
+	very
+
+	multiline.
+
+	@docsncode */
+
 }
