@@ -6,13 +6,39 @@ import (
 )
 
 // TODO: унести всё в yaml-конфиг
+// TODO: валидация конфига
 var (
-	EXTENSION_TO_LANGUAGE_MAPPING               = map[string]string{".go": "Golang", ".txt": "Text"}
-	LANGUAGE_TO_SINGLE_LINE_COMMENT_START_TOKEN = map[string]string{"Golang": "//", "Text": "//"}
-	LANGUAGE_TO_MULTILINE_COMMENT_INFO          = map[string]*MultilineCommentInfo{"Golang": {
+	EXTENSION_TO_LANGUAGE_MAPPING = map[string]string{
+		".go":   "Golang",
+		".txt":  "Text",
+		".cpp":  "C++",
+		".hpp":  "C++",
+		".c":    "C",
+		".h":    "C",
+		".java": "Java",
+		".cs":   "C#",
+	}
+	LANGUAGE_TO_SINGLE_LINE_COMMENT_START_TOKEN = map[string]string{
+		"Golang": "//",
+		"Text":   "//",
+		"C++":    "//",
+		"C":      "//",
+		"Java":   "//",
+		"C#":     "//",
+	}
+
+	C_STYLE_MULTILINE_COMMENT_INFO = MultilineCommentInfo{
 		StartToken: "/*",
 		EndToken:   "*/",
-	}}
+	}
+
+	LANGUAGE_TO_MULTILINE_COMMENT_INFO = map[string]*MultilineCommentInfo{
+		"Golang": &C_STYLE_MULTILINE_COMMENT_INFO,
+		"C++":    &C_STYLE_MULTILINE_COMMENT_INFO,
+		"C":      &C_STYLE_MULTILINE_COMMENT_INFO,
+		"Java":   &C_STYLE_MULTILINE_COMMENT_INFO,
+		"C#":     &C_STYLE_MULTILINE_COMMENT_INFO,
+	}
 
 	// TODO: нет ли проблем с тем, что эти токены совпадают?
 	COMMENT_BLOCK_START_TOKEN = "@docsncode"
