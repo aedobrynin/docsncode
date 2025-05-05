@@ -32,28 +32,13 @@ import (
 // tests 1-8 should be duplicated for every programming language with different comments syntax
 // tests for errors
 
-func TestCStyleComments(t *testing.T) {
-	for _, tc := range []struct {
-		name          string
-		expectedError error
-	}{
-		{
-			name:          "c_style_comments/file_with_code",
-			expectedError: nil,
-		},
-		{
-			name:          "c_style_comments/file_with_single_line_comment_block",
-			expectedError: nil,
-		},
-		{
-			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
-			expectedError: nil,
-		},
-		{
-			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
-			expectedError: nil,
-		},
-	} {
+type testCase struct {
+	name          string
+	expectedError error
+}
+
+func runTests(t *testing.T, testCases []testCase) {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			pathToProjectRoot := filepath.Join("tests", tc.name, "project")
 			pathToExpectedResultDir := filepath.Join("tests", tc.name, "expected_result")
@@ -70,12 +55,31 @@ func TestCStyleComments(t *testing.T) {
 	}
 }
 
-// TODO: убрать дублирование кода
+func TestCStyleComments(t *testing.T) {
+	testCases := []testCase{
+		{
+			name:          "c_style_comments/file_with_code",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_single_line_comment_block",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
+			expectedError: nil,
+		},
+	}
+
+	runTests(t, testCases)
+}
+
 func TestLinks(t *testing.T) {
-	for _, tc := range []struct {
-		name          string
-		expectedError error
-	}{
+	testCases := []testCase{
 		{
 			name:          "links/link_with_rel_path_to_file_with_result_file",
 			expectedError: nil,
@@ -86,19 +90,18 @@ func TestLinks(t *testing.T) {
 		},
 		// TODO: добавить тесты на абсолютные пути в ссылках
 		// TODO: возможно вообще избавиться от возможности задавать абсолютные пути?
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			pathToProjectRoot := filepath.Join("tests", tc.name, "project")
-			pathToExpectedResultDir := filepath.Join("tests", tc.name, "expected_result")
-
-			resultDir := t.TempDir()
-
-			err := buildDocsncode(pathToProjectRoot, resultDir)
-
-			require.Equal(t, err, tc.expectedError)
-
-			err = compare.Dirs(pathToExpectedResultDir, resultDir)
-			require.NoError(t, err)
-		})
 	}
+
+	runTests(t, testCases)
+}
+
+func TestDiagrams(t *testing.T) {
+	testCases := []testCase{
+		{
+			name:          "diagrams/graph",
+			expectedError: nil,
+		},
+	}
+
+	runTests(t, testCases)
 }

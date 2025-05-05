@@ -10,11 +10,12 @@ import (
 	"strings"
 	"text/template"
 
-	"docsncode/cfg"
-
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/util"
+	"go.abhg.dev/goldmark/mermaid"
+
+	"docsncode/cfg"
 )
 
 // TODO: порефакторить код с парсингом блоков
@@ -162,6 +163,8 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 
 	// TODO: не создавать новый конвертер на каждый файл
 	converter := goldmark.New(
+		// TODO: подумать, не нужен ли RenderModeServer?
+		goldmark.WithExtensions(&mermaid.Extender{RenderMode: mermaid.RenderModeClient}),
 		goldmark.WithParserOptions(
 			parser.WithASTTransformers(util.Prioritized(&linksResolverTransformer{
 				absPathToProjectRoot: absPathToProjectRoot,
