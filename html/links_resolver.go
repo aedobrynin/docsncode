@@ -52,7 +52,7 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 		absPath = filepath.Join(filepath.Dir(absPathToCurrentFile), absPath)
 	}
 
-	log.Printf("absPath=%s\n", absPath)
+	log.Printf("absPath=%s", absPath)
 
 	if !isPathNested(absPathToProjectRoot, absPath) {
 		relPath, err := filepath.Rel(absPathToResultFile, absPath)

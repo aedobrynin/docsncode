@@ -1,6 +1,7 @@
 package main
 
 import (
+	"docsncode/buildcache"
 	"path/filepath"
 	"testing"
 
@@ -29,6 +30,7 @@ import (
 // 17. test image from website
 // 18. test many files in project
 // 19. test allowed extensions
+// 20. tests for cache
 // tests 1-8 should be duplicated for every programming language with different comments syntax
 // tests for errors
 
@@ -45,7 +47,8 @@ func runTests(t *testing.T, testCases []testCase) {
 
 			resultDir := t.TempDir()
 
-			err := buildDocsncode(pathToProjectRoot, resultDir)
+			// TODO: поддержать кэш в тестах
+			err := buildDocsncode(pathToProjectRoot, resultDir, buildcache.NewAlwaysEmptyBuildCache())
 
 			require.Equal(t, err, tc.expectedError)
 
