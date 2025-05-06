@@ -6,37 +6,38 @@ import (
 	"os"
 	"path/filepath"
 
+	"docsncode/buildcache"
 	"docsncode/cfg"
 	"docsncode/html"
 	"docsncode/utils"
 )
 
-func buildDocsncodeForFile(path, absResultPath, absPathToCurrentFile, absPathToResultDir, absPathToProjectRoot string) error {
+func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToResultDir, absPathToProjectRoot string) error {
 	// TODO: не запускать билд, если текущий результат актуален
 
-	fileExtension := filepath.Ext(path)
-	log.Printf("File extension is: %s\n", fileExtension)
+	fileExtension := filepath.Ext(absPathToSourceFile)
+	log.Printf("File extension is: %s", fileExtension)
 
 	languageInfo, err := cfg.GetLanguageInfo(fileExtension)
 	if err != nil {
 		return fmt.Errorf("error on getting language info: %w", err)
 	}
-	log.Printf("Building html for %s\n", languageInfo.Language)
+	log.Printf("Building html for %s", languageInfo.Language)
 
-	file, err := os.Open(path)
+	file, err := os.Open(absPathToSourceFile)
 	if err != nil {
-		return fmt.Errorf("couldn't open file %s: %w", path, err)
+		return fmt.Errorf("couldn't open file %s: %w", absPathToSourceFile, err)
 	}
 	defer file.Close()
 
-	html, err := html.BuildHTML(file, *languageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absResultPath)
+	html, err := html.BuildHTML(file, *languageInfo, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile)
 	if err != nil {
-		return fmt.Errorf("error on bulding HTML for %s: %w", path, err)
+		return fmt.Errorf("error on bulding HTML for %s: %w", absPathToSourceFile, err)
 	}
 
-	resultFile, err := os.OpenFile(absResultPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	resultFile, err := os.OpenFile(absPathToResultFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return fmt.Errorf("couldn't create result file %s: %w", absResultPath, err)
+		return fmt.Errorf("couldn't create result file %s: %w", absPathToResultFile, err)
 	}
 	defer resultFile.Close()
 
@@ -48,7 +49,7 @@ func buildDocsncodeForFile(path, absResultPath, absPathToCurrentFile, absPathToR
 	return nil
 }
 
-func buildDocsncode(pathToProjectRoot, pathToResultDir string) error {
+func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache) error {
 	pathToProjectRoot, err := filepath.Abs(pathToProjectRoot)
 	if err != nil {
 		return fmt.Errorf("couldn't get absolute path for project root directory: %w", err)
@@ -68,7 +69,7 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string) error {
 
 		absolutePathToEntry, err := filepath.Abs(path)
 		if err != nil {
-			log.Printf("couldn't get absolute path of %s\n", path)
+			log.Printf("couldn't get absolute path of %s", path)
 			return filepath.SkipDir
 		}
 
@@ -78,7 +79,7 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string) error {
 		}
 
 		if entry.IsDir() {
-			log.Printf("start walking through %s directory\n", path)
+			log.Printf("start walking through %s directory", path)
 
 			// TODO: не создавать директорию, если внутри неё нет файлов,
 			// по которым построена документация
@@ -100,7 +101,7 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string) error {
 			return nil
 		}
 
-		log.Printf("start building docsncode for %s\n", path)
+		log.Printf("start building docsncode for %s", path)
 
 		targetPath, err := utils.ConvertToPathInResultDir(pathToProjectRoot,
 			path,
@@ -111,11 +112,25 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string) error {
 			return nil
 		}
 
-		err = buildDocsncodeForFile(path, targetPath, absolutePathToEntry, pathToResultDir, pathToProjectRoot)
+		relPathToEntry, err := filepath.Rel(pathToProjectRoot, absolutePathToEntry)
+		if err != nil {
+			log.Printf("error on building rel path to source file: %v", err)
+			return nil
+		}
+
+		// TODO: поправить RelPathFromProjectRoot
+		if !buildCache.ShouldBuild(buildcache.RelPathFromProjectRoot(relPathToEntry)) {
+			log.Printf("current result is actual according to build cache")
+			return nil
+		}
+
+		err = buildDocsncodeForFile(absolutePathToEntry, targetPath, pathToResultDir, pathToProjectRoot)
 		if err != nil {
 			log.Printf("error on building docsncode for %s: %v", path, err)
 			return nil
 		}
+		// TODO: поправить RelPathFromProjectRoot
+		buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(relPathToEntry))
 
 		return nil
 	})

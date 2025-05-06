@@ -177,7 +177,7 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 
 	var buf bytes.Buffer
 	if err := converter.Convert(md, &buf); err != nil {
-		return nil, fmt.Errorf("error on converting markdown to HTML: %v", err)
+		return nil, fmt.Errorf("error on converting markdown to HTML: %w", err)
 	}
 	return buf.Bytes(), nil
 }
@@ -185,7 +185,7 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 // Assumes that comment block start line is already parsed
 func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
 	// TODO: учитывать отступ всего блока с комментарием
-	log.Printf("Start parsing and building comment block, isMultiline=%t\n", isMultiline)
+	log.Printf("Start parsing and building comment block, isMultiline=%t", isMultiline)
 
 	var rawContent []byte
 	var err error
