@@ -22,6 +22,7 @@ import (
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
 // TODO: поправить отступы в HTML
+// TODO: не подключать highlight.js, если в файле не будет блоков с кодом
 var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
 <head>
