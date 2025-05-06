@@ -38,6 +38,7 @@ func initBuildCache(forceRebuild, noCache bool, absPathToProjectRoot, absPathToR
 func main() {
 	log.SetOutput(os.Stderr)
 
+	// TOFIX: флаги не считываются
 	forceRebuild := flag.Bool("force-rebuild", false, "ignore cached values and rebuild whole result")
 	noCache := flag.Bool("no-cache", false, "ignore cached values and do not cache the result")
 
@@ -55,7 +56,7 @@ func main() {
 		pathToCacheFile = filepath.Join(pathToProjectRoot, ".docsncode_cache.json")
 	}
 
-	log.Printf("path_to_project_root=%s, path_to_result_dir=%s, path_to_cache_file=%s", pathToProjectRoot, pathToResultDir, pathToCacheFile)
+	log.Printf("path_to_project_root=%s, path_to_result_dir=%s, path_to_cache_file=%s, force_rebuild=%t, no_cache=%t", pathToProjectRoot, pathToResultDir, pathToCacheFile, *forceRebuild, *noCache)
 
 	// TODO: правда ли, что это должно происходить тут?
 	err := os.MkdirAll(pathToResultDir, 0755)

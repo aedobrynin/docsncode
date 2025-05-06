@@ -22,25 +22,24 @@ import (
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
 // TODO: поправить отступы в HTML
+// TODO: не подключать highlight.js, если в файле не будет блоков с кодом
 var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
 <head>
-    <style>
-        .code_block { font-size: 16px; color: black; }
-    </style>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/default.min.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
 </head>
 <body>
     {{range .}}
         {{if eq .Type 0}}
-            <p class="code_block">
-				<pre><code>{{.Content}}</code></pre>
-			</p>
+			<pre><code>{{.Content}}</code></pre>
         {{else if eq .Type 1}}
-            <p>
-				{{.Content}}
+			<p>
+				<pre>{{.Content}}</pre>
 			</p>
-        {{end}}
-    {{end}}
+		{{end}}
+	{{end}}
+	<script>hljs.highlightAll();</script>
 </body>
 </html>
 `))
@@ -210,6 +209,15 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 	}, nil
 }
 
+func EscapeHTMLInCodeBlocks(blocks []Block) {
+	for i, _ := range blocks {
+		if blocks[i].Type != Code {
+			continue
+		}
+		blocks[i].Content = template.HTMLEscapeString(blocks[i].Content)
+	}
+}
+
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
 func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
 	blocks := []Block{}
@@ -263,6 +271,8 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error on scanning file: %w", err)
 	}
+
+	EscapeHTMLInCodeBlocks(blocks)
 
 	resultBuf := bytes.NewBuffer([]byte{})
 	err := HTML_TEMPLATE.Execute(resultBuf, blocks)
