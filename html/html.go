@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
@@ -57,7 +58,8 @@ type Block struct {
 }
 
 var (
-	ErrCommentBlockEndNotFound = errors.New("didn't see comment block end")
+	ErrCommentBlockEndNotFound                     = errors.New("didn't see comment block end")
+	ErrCommentBlockEndedBeforeCommentBlockEndToken = errors.New("comment block ended before comment block end token")
 )
 
 func isSingleLineCommentBlockStart(line string, languageInfo cfg.LanguageInfo) bool {
@@ -108,6 +110,22 @@ func isMultilineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool
 	return strings.HasPrefix(line, languageInfo.MultilineCommentInfo.EndToken)
 }
 
+func removeSingleLineCommentStartToken(line, singleLineCommentStartToken string) (string, error) {
+	commentStartTokenIndx := strings.Index(line, singleLineCommentStartToken)
+	if commentStartTokenIndx == -1 {
+		log.Println("Line doesn't have comment start token even though we're inside comments block")
+		return "", ErrCommentBlockEndedBeforeCommentBlockEndToken
+	}
+	for _, rune := range line[:commentStartTokenIndx] {
+		if !unicode.IsSpace(rune) {
+			log.Println("Line doesn't have comment start token even though we're inside comments block")
+			return "", ErrCommentBlockEndedBeforeCommentBlockEndToken
+		}
+	}
+	// TODO: return line[:commentStartTokenIndx] + line[commentStartTokenIndx+len(singleLineCommentStartToken):], nil
+	return line[commentStartTokenIndx+len(singleLineCommentStartToken):], nil
+}
+
 func parseSingleLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
 	log.Println("Start parsing single line comment block")
 	var content []byte
@@ -119,11 +137,11 @@ func parseSingleLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Langua
 			return content, nil
 		}
 
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, languageInfo.SingleLineCommentStartToken) {
-			log.Println("Line doesn't have comment start token even though we're inside comments block")
+		line, err := removeSingleLineCommentStartToken(line, languageInfo.SingleLineCommentStartToken)
+		if err != nil {
+			return nil, err
 		}
-		line = strings.TrimPrefix(line, languageInfo.SingleLineCommentStartToken)
+
 		// TODO: trim leading spaces?
 		if len(content) != 0 {
 			content = append(content, '\n')
@@ -162,16 +180,33 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 
 	// TODO: не создавать новый конвертер на каждый файл
 	converter := goldmark.New(
-		// TODO: подумать, не нужен ли RenderModeServer?
-		goldmark.WithExtensions(&mermaid.Extender{RenderMode: mermaid.RenderModeClient}),
-		goldmark.WithParserOptions(
+		goldmark.WithParser(parser.NewParser( // TODO: как-то поддержать блоки кода в самом markdown
+			// All parsers except code span parser
+			parser.WithBlockParsers(
+				util.Prioritized(parser.NewSetextHeadingParser(), 100),
+				util.Prioritized(parser.NewThematicBreakParser(), 200),
+				util.Prioritized(parser.NewListParser(), 300),
+				util.Prioritized(parser.NewListItemParser(), 400),
+				util.Prioritized(parser.NewATXHeadingParser(), 600),
+				util.Prioritized(parser.NewBlockquoteParser(), 800),
+				util.Prioritized(parser.NewHTMLBlockParser(), 900),
+				util.Prioritized(parser.NewParagraphParser(), 1000),
+			),
+			parser.WithInlineParsers(
+				util.Prioritized(parser.NewLinkParser(), 200),
+				util.Prioritized(parser.NewAutoLinkParser(), 300),
+				util.Prioritized(parser.NewRawHTMLParser(), 400),
+				util.Prioritized(parser.NewEmphasisParser(), 500),
+			),
 			parser.WithASTTransformers(util.Prioritized(&linksResolverTransformer{
 				absPathToProjectRoot: absPathToProjectRoot,
 				absPathToCurrentFile: absPathToCurrentFile,
 				absPathToResultDir:   absPathToResultDir,
 				absPathToResultFile:  absPathToResultFile,
-			}, 0)),
+			}, 0))),
 		),
+		// TODO: подумать, не нужен ли RenderModeServer?
+		goldmark.WithExtensions(&mermaid.Extender{RenderMode: mermaid.RenderModeClient}),
 	)
 
 	var buf bytes.Buffer
