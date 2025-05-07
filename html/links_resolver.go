@@ -66,6 +66,7 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 	log.Println("path is nested")
 
 	// TODO: переделать на нормальную функцию
+	// TODO: учитывать pathsIgnorer
 	_, err := cfg.GetLanguageInfo(filepath.Ext(absPath))
 	if err == nil {
 		log.Println("path will have result file")
