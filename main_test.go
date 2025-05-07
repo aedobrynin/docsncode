@@ -2,6 +2,7 @@ package main
 
 import (
 	"docsncode/buildcache"
+	"docsncode/pathsignorer"
 	"path/filepath"
 	"testing"
 
@@ -48,7 +49,7 @@ func runTests(t *testing.T, testCases []testCase) {
 			resultDir := t.TempDir()
 
 			// TODO: поддержать кэш в тестах
-			err := buildDocsncode(pathToProjectRoot, resultDir, buildcache.NewAlwaysEmptyBuildCache())
+			err := buildDocsncode(pathToProjectRoot, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
 
 			require.Equal(t, err, tc.expectedError)
 
