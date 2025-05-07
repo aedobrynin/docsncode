@@ -40,6 +40,14 @@ var (
 		"C#":     &C_STYLE_MULTILINE_COMMENT_INFO,
 	}
 
+	LANGUAGE_TO_HIGHLIGHT_JS_LANGUAGE_NAME = map[string]string{
+		"Golang": "golang",
+		"C++":    "c++",
+		"C":      "c",
+		"Java":   "java",
+		"C#":     "csharp",
+	}
+
 	// TODO: нет ли проблем с тем, что эти токены совпадают?
 	COMMENT_BLOCK_START_TOKEN = "@docsncode"
 	COMMENT_BLOCK_END_TOKEN   = "@docsncode"
@@ -58,6 +66,7 @@ type LanguageInfo struct {
 	Language                    string
 	SingleLineCommentStartToken string
 	MultilineCommentInfo        *MultilineCommentInfo
+	HighlightJsLanguageName     *string
 }
 
 func GetLanguageInfo(file_extension string) (*LanguageInfo, error) {
@@ -72,9 +81,17 @@ func GetLanguageInfo(file_extension string) (*LanguageInfo, error) {
 	}
 
 	multilineCommentInfo := LANGUAGE_TO_MULTILINE_COMMENT_INFO[language]
+
+	var highlightJsLanguageName *string
+	hljsLanguageName, isPresent := LANGUAGE_TO_HIGHLIGHT_JS_LANGUAGE_NAME[language]
+	if isPresent {
+		highlightJsLanguageName = &hljsLanguageName
+	}
+
 	return &LanguageInfo{
 		Language:                    language,
 		SingleLineCommentStartToken: singleLineCommentStartToken,
 		MultilineCommentInfo:        multilineCommentInfo,
+		HighlightJsLanguageName:     highlightJsLanguageName,
 	}, nil
 }

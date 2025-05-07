@@ -24,6 +24,7 @@ import (
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
 // TODO: не подключать highlight.js, если в файле не будет блоков с кодом
 // TODO: вынести настройку tab-size в конфиг
+// TODO: make internal
 var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
 <head>
@@ -32,9 +33,13 @@ var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE htm
 	<style>pre {tab-size: 4ch;}</style>
 </head>
 <body>
-    {{range .}}
+    {{range .Blocks}}
         {{if eq .Type 0}}
-			<pre><code>{{.Content}}</code></pre>
+			{{if $.HighlightJsLanguageName }}
+				<pre><code class="language-{{$.HighlightJsLanguageName}}">{{.Content}}</code></pre>
+			{{else}}
+				<pre><code>{{.Content}}</code></pre>
+			{{end}}
         {{else if eq .Type 1}}
 			<div style="padding-left: calc({{.IndentSpacesCnt}}ch + 1em); font-size:12px;">{{.Content}}</div>
 		{{end}}
@@ -44,6 +49,12 @@ var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE htm
 </html>
 `))
 
+type htmlTemplateData struct {
+	Blocks                  []Block
+	HighlightJsLanguageName *string
+}
+
+// TODO: make internal
 type BlockType int
 
 const (
@@ -51,6 +62,7 @@ const (
 	Comment
 )
 
+// TODO: растащить на две структуры
 type Block struct {
 	Type            BlockType
 	Content         string
@@ -329,7 +341,8 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 	EscapeHTMLInCodeBlocks(blocks)
 
 	resultBuf := bytes.NewBuffer([]byte{})
-	err := HTML_TEMPLATE.Execute(resultBuf, blocks)
+
+	err := HTML_TEMPLATE.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: languageInfo.HighlightJsLanguageName})
 
 	if err != nil {
 		return nil, fmt.Errorf("error on filling HTML template: %w", err)
