@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 /* @docsncode
-Multiline comment blocks
+Multiline comment block
 @docsncode */
 
 func main() {

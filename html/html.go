@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
@@ -21,22 +22,21 @@ import (
 // TODO: порефакторить код с парсингом блоков
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
-// TODO: поправить отступы в HTML
 // TODO: не подключать highlight.js, если в файле не будет блоков с кодом
+// TODO: вынести настройку tab-size в конфиг
 var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
 <head>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/default.min.css">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+	<style>pre {tab-size: 4ch;}</style>
 </head>
 <body>
     {{range .}}
         {{if eq .Type 0}}
 			<pre><code>{{.Content}}</code></pre>
         {{else if eq .Type 1}}
-			<p>
-				<pre>{{.Content}}</pre>
-			</p>
+			<div style="padding-left: calc({{.IndentSpacesCnt}}ch + 1em); font-size:12px;">{{.Content}}</div>
 		{{end}}
 	{{end}}
 	<script>hljs.highlightAll();</script>
@@ -52,8 +52,9 @@ const (
 )
 
 type Block struct {
-	Type    BlockType
-	Content string
+	Type            BlockType
+	Content         string
+	IndentSpacesCnt int
 }
 
 var (
@@ -108,15 +109,35 @@ func isMultilineCommentBlockEnd(line string, languageInfo cfg.LanguageInfo) bool
 	return strings.HasPrefix(line, languageInfo.MultilineCommentInfo.EndToken)
 }
 
-func parseSingleLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
+type Indent = string
+
+// TODO: remove Fatalf
+func extractIndentFromSingleLineCommentBlockStart(line, singleLineCommentStartToken string) Indent {
+	indx := strings.Index(line, singleLineCommentStartToken)
+	if indx == -1 {
+		log.Fatalf("The line should be start of comment block, but it isn't")
+	}
+
+	for _, r := range line[:indx] {
+		if !unicode.IsSpace(r) {
+			log.Fatalf("The line should be start of comment block, but it isn't")
+		}
+	}
+	return line[:indx]
+}
+
+func parseSingleLineCommentBlock(scanner *bufio.Scanner, startLine string, languageInfo cfg.LanguageInfo) ([]byte, Indent, error) {
 	log.Println("Start parsing single line comment block")
+
+	indent := extractIndentFromSingleLineCommentBlockStart(startLine, languageInfo.SingleLineCommentStartToken)
+
 	var content []byte
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if isSingleLineCommentBlockEnd(line, languageInfo) {
 			log.Println("Found comment block end, stop parsing comment block raw content")
-			return content, nil
+			return content, indent, nil
 		}
 
 		line = strings.TrimSpace(line)
@@ -131,21 +152,38 @@ func parseSingleLineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Langua
 		content = append(content, line...)
 	}
 
-	return nil, ErrCommentBlockEndNotFound
+	return nil, "", ErrCommentBlockEndNotFound
 }
 
-func parseMultilineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo) ([]byte, error) {
+// TODO: remove Fatalf
+func extractIndentFromMultilineCommentBlock(line, multilineCommentStartToken string) Indent {
+	indx := strings.Index(line, multilineCommentStartToken)
+	if indx == -1 {
+		log.Fatalf("The line should be start of comment block, but it isn't")
+	}
+
+	for _, r := range line[:indx] {
+		if !unicode.IsSpace(r) {
+			log.Fatalf("The line should be start of comment block, but it isn't")
+		}
+	}
+	return line[:indx]
+}
+
+func parseMultilineCommentBlock(scanner *bufio.Scanner, startLine string, languageInfo cfg.LanguageInfo) ([]byte, Indent, error) {
 	log.Println("Start parsing multiline comment block")
+
+	indent := extractIndentFromMultilineCommentBlock(startLine, languageInfo.MultilineCommentInfo.StartToken)
+
 	var content []byte
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if isMultilineCommentBlockEnd(line, languageInfo) {
 			log.Println("Found multiline comment block end, stop parsing comment block raw content")
-			return content, nil
+			return content, indent, nil
 		}
 
-		// TODO: поддержка отступов
 		line = strings.TrimSpace(line)
 		if len(content) != 0 {
 			content = append(content, '\n')
@@ -153,7 +191,7 @@ func parseMultilineCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Languag
 		content = append(content, line...)
 	}
 
-	return nil, ErrCommentBlockEndNotFound
+	return nil, "", ErrCommentBlockEndNotFound
 }
 
 func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) ([]byte, error) {
@@ -181,18 +219,31 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 	return buf.Bytes(), nil
 }
 
+func calculateIndentSpacesCnt(indent Indent) int {
+	cnt := 0
+	for _, r := range indent {
+		if r == '\t' {
+			cnt += 4 // TODO: move tab size to config
+		} else {
+			cnt++
+		}
+	}
+	return cnt
+}
+
 // Assumes that comment block start line is already parsed
-func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
+func parseAndBuildCommentBlock(scanner *bufio.Scanner, startLine string, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
 	// TODO: учитывать отступ всего блока с комментарием
 	log.Printf("Start parsing and building comment block, isMultiline=%t", isMultiline)
 
 	var rawContent []byte
+	var indent Indent
 	var err error
 
 	if isMultiline {
-		rawContent, err = parseMultilineCommentBlock(scanner, languageInfo)
+		rawContent, indent, err = parseMultilineCommentBlock(scanner, startLine, languageInfo)
 	} else {
-		rawContent, err = parseSingleLineCommentBlock(scanner, languageInfo)
+		rawContent, indent, err = parseSingleLineCommentBlock(scanner, startLine, languageInfo)
 	}
 
 	if err != nil {
@@ -204,8 +255,9 @@ func parseAndBuildCommentBlock(scanner *bufio.Scanner, languageInfo cfg.Language
 		return nil, err
 	}
 	return &Block{
-		Type:    Comment,
-		Content: string(htmlContent),
+		Type:            Comment,
+		Content:         string(htmlContent),
+		IndentSpacesCnt: calculateIndentSpacesCnt(indent),
 	}, nil
 }
 
@@ -218,6 +270,7 @@ func EscapeHTMLInCodeBlocks(blocks []Block) {
 	}
 }
 
+// TODO: игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
 func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
 	blocks := []Block{}
@@ -243,7 +296,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 				current_code_block_content = nil
 			}
 
-			block, err := parseAndBuildCommentBlock(scanner, languageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile, isMultilineCommentBlockStart)
+			block, err := parseAndBuildCommentBlock(scanner, line, languageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile, isMultilineCommentBlockStart)
 			if err != nil {
 				return nil, fmt.Errorf("error on parsing comment block: %w", err)
 			}
@@ -263,7 +316,8 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 		blocks = append(blocks, Block{
 			Type: Code,
 			// TODO: use unsafe?
-			Content: string(current_code_block_content),
+			Content:         string(current_code_block_content),
+			IndentSpacesCnt: 0,
 		})
 		current_code_block_content = nil
 	}

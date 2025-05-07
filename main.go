@@ -107,6 +107,7 @@ func main() {
 
 			// @docsncode
 			// Here we use function from [html.go](html/html.go)
+			// kek
 			// @docsncode
 
 			err = buildDocsncode(pathToProjectRoot, pathToResultDir, buildCache)

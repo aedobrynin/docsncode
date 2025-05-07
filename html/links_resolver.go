@@ -91,6 +91,7 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 	return []byte(relPath)
 }
 
+// TODO: use ast.Walk
 func (t *linksResolverTransformer) traverseChildren(node ast.Node) {
 	if node == nil {
 		return
