@@ -6,19 +6,19 @@ type ForceRebuildCache struct {
 }
 
 func NewForceRebuildCache(storingCache BuildCache) BuildCache {
-	return ForceRebuildCache{
+	return &ForceRebuildCache{
 		storingCache: storingCache,
 	}
 }
 
-func (ForceRebuildCache) ShouldBuild(relPathFromProjectRootToFile RelPathFromProjectRoot) bool {
+func (*ForceRebuildCache) ShouldBuild(relPathFromProjectRootToFile RelPathFromProjectRoot) bool {
 	return true
 }
 
-func (c ForceRebuildCache) StoreBuildResult(relPathFromProjectRootToFile RelPathFromProjectRoot) {
+func (c *ForceRebuildCache) StoreBuildResult(relPathFromProjectRootToFile RelPathFromProjectRoot) {
 	c.storingCache.StoreBuildResult(relPathFromProjectRootToFile)
 }
 
-func (c ForceRebuildCache) Dump() error {
+func (c *ForceRebuildCache) Dump() error {
 	return c.storingCache.Dump()
 }

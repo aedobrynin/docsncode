@@ -9,12 +9,11 @@ import (
 	"docsncode/buildcache"
 	"docsncode/cfg"
 	"docsncode/html"
+	"docsncode/pathsignorer"
 	"docsncode/utils"
 )
 
 func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToResultDir, absPathToProjectRoot string) error {
-	// TODO: не запускать билд, если текущий результат актуален
-
 	fileExtension := filepath.Ext(absPathToSourceFile)
 	log.Printf("File extension is: %s", fileExtension)
 
@@ -49,7 +48,7 @@ func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToRe
 	return nil
 }
 
-func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache) error {
+func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
 	pathToProjectRoot, err := filepath.Abs(pathToProjectRoot)
 	if err != nil {
 		return fmt.Errorf("couldn't get absolute path for project root directory: %w", err)
@@ -121,6 +120,12 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 		// TODO: поправить RelPathFromProjectRoot
 		if !buildCache.ShouldBuild(buildcache.RelPathFromProjectRoot(relPathToEntry)) {
 			log.Printf("current result is actual according to build cache")
+			return nil
+		}
+
+		// TODO: поправить RelPathFromProjectRoot
+		if pathsIgnorer.ShouldIgnore(pathsignorer.RelPathFromProjectRoot(relPathToEntry)) {
+			log.Printf("paths ignorer said to ignore the file")
 			return nil
 		}
 

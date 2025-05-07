@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"docsncode/buildcache"
+	"docsncode/pathsignorer"
 )
 
 // @docsncode
@@ -27,7 +27,6 @@ func initBuildCache(forceRebuild, noCache bool, absPathToProjectRoot, absPathToR
 		log.Printf("will use always empty build cache")
 		return buildcache.NewAlwaysEmptyBuildCache()
 	}
-	// TODO: handle force rebuild
 
 	modificationTimeBasedBuildCache := buildcache.NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile)
 	if forceRebuild {
@@ -74,12 +73,6 @@ func main() {
 			forceRebuild := c.Bool("force-rebuild")
 			noCache := c.Bool("no-cache")
 
-			fmt.Println("path-to-project-root:", pathToProjectRoot)
-			fmt.Println("path-to-result-dir:", pathToResultDir)
-			fmt.Println("path-to-cache-file:", pathToCacheFile)
-			fmt.Println("force-rebuild:", forceRebuild)
-			fmt.Println("no-cache:", noCache)
-
 			log.Printf("path_to_project_root=%s, path_to_result_dir=%s, path_to_cache_file=%s, force_rebuild=%t, no_cache=%t", pathToProjectRoot, pathToResultDir, pathToCacheFile, forceRebuild, noCache)
 
 			// TODO: правда ли, что это должно происходить тут?
@@ -110,7 +103,13 @@ func main() {
 			// kek
 			// @docsncode
 
-			err = buildDocsncode(pathToProjectRoot, pathToResultDir, buildCache)
+			pathToDocsncodeIgnoreFile := filepath.Join(absPathToProjectRoot, ".docsncodeignore")
+			pathsIgnorer, err := pathsignorer.NewGoGitignoreBasedPathsIgnorer(pathsignorer.RelPathFromProjectRoot(pathToDocsncodeIgnoreFile))
+			if err != nil {
+				log.Fatalf("error on building paths ignorer: %v", err)
+			}
+
+			err = buildDocsncode(pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
 			if err != nil {
 				log.Fatalf("error on building docsncode: %v", err)
 			}
