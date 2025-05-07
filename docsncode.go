@@ -13,6 +13,19 @@ import (
 	"docsncode/utils"
 )
 
+func createFileAndNeededDirs(path string) (*os.File, error) {
+	err := os.MkdirAll(filepath.Dir(path), 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return nil, err
+	}
+	return file, nil
+}
+
 func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToResultDir, absPathToProjectRoot string) error {
 	fileExtension := filepath.Ext(absPathToSourceFile)
 	log.Printf("File extension is: %s", fileExtension)
@@ -34,7 +47,7 @@ func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToRe
 		return fmt.Errorf("error on bulding HTML for %s: %w", absPathToSourceFile, err)
 	}
 
-	resultFile, err := os.OpenFile(absPathToResultFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	resultFile, err := createFileAndNeededDirs(absPathToResultFile)
 	if err != nil {
 		return fmt.Errorf("couldn't create result file %s: %w", absPathToResultFile, err)
 	}
@@ -77,27 +90,20 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 			return filepath.SkipDir
 		}
 
+		relPathToEntry, err := filepath.Rel(pathToProjectRoot, absolutePathToEntry)
+		if err != nil {
+			log.Printf("error on building rel path to source file: %v", err)
+			return nil
+		}
+
 		if entry.IsDir() {
 			log.Printf("start walking through %s directory", path)
 
-			// TODO: не создавать директорию, если внутри неё нет файлов,
-			// по которым построена документация
-
-			targetPath, err := utils.ConvertToPathInResultDir(
-				pathToProjectRoot,
-				path,
-				false, // isFile
-				pathToResultDir)
-			if err != nil {
-				log.Printf("error on building path to result dir for %s: %v", path, err)
+			// TODO: поправить RelPathFromProjectRoot
+			if pathsIgnorer.ShouldIgnore(pathsignorer.RelPathFromProjectRoot(relPathToEntry)) {
+				log.Printf("paths ignorer said to ignore the directory")
 				return nil
 			}
-
-			err = os.MkdirAll(targetPath, 0755)
-			if err != nil {
-				return fmt.Errorf("error on creating directory %s: %w", path, err)
-			}
-			return nil
 		}
 
 		log.Printf("start building docsncode for %s", path)
@@ -108,12 +114,6 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 			pathToResultDir)
 		if err != nil {
 			log.Printf("error on building path to result file for %s: %v", path, err)
-			return nil
-		}
-
-		relPathToEntry, err := filepath.Rel(pathToProjectRoot, absolutePathToEntry)
-		if err != nil {
-			log.Printf("error on building rel path to source file: %v", err)
 			return nil
 		}
 
