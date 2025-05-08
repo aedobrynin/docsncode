@@ -1,8 +1,6 @@
 package html
 
 import (
-	"docsncode/cfg"
-	"docsncode/utils"
 	"log"
 	"net/url"
 	"path/filepath"
@@ -10,6 +8,9 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+
+	"docsncode/cfg"
+	"docsncode/utils"
 )
 
 type linksResolverTransformer struct {
@@ -92,34 +93,28 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 	return []byte(relPath)
 }
 
-// TODO: use ast.Walk
-func (t *linksResolverTransformer) traverseChildren(node ast.Node) {
-	if node == nil {
-		return
-	}
-
-	if node.HasChildren() {
-		t.traverseChildren(node.FirstChild())
-	}
-	t.traverseChildren(node.NextSibling())
-
-	if node.Kind() == ast.KindImage {
-		img := node.(*ast.Image)
-		log.Printf("Found image with destination=%s", img.Destination)
-		img.Destination = getUpdatedPath(img.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
-		log.Printf("Updated destination is %s", img.Destination)
-		return
-	}
-
-	if node.Kind() == ast.KindLink {
-		link := node.(*ast.Link)
-		log.Printf("Found link with destination=%s", link.Destination)
-		link.Destination = getUpdatedPath(link.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
-		log.Printf("Updated destination is %s", link.Destination)
-		return
-	}
-}
-
 func (t *linksResolverTransformer) Transform(node *ast.Document, reader text.Reader, pc parser.Context) {
-	t.traverseChildren(node)
+	ast.Walk(node, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		if node.Kind() == ast.KindImage {
+			img := node.(*ast.Image)
+			log.Printf("Found image with destination=%s", img.Destination)
+			img.Destination = getUpdatedPath(img.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
+			log.Printf("Updated destination is %s", img.Destination)
+			return ast.WalkContinue, nil
+		}
+
+		if node.Kind() == ast.KindLink {
+			link := node.(*ast.Link)
+			log.Printf("Found link with destination=%s", link.Destination)
+			link.Destination = getUpdatedPath(link.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
+			log.Printf("Updated destination is %s", link.Destination)
+			return ast.WalkContinue, nil
+		}
+
+		return ast.WalkContinue, nil
+	})
 }

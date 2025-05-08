@@ -7,7 +7,7 @@ require (
 	github.com/yuin/goldmark v1.7.11
 )
 
-require github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
+require github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
