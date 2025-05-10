@@ -3,6 +3,7 @@ package main
 import (
 	"docsncode/buildcache"
 	"docsncode/pathsignorer"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -11,33 +12,31 @@ import (
 )
 
 // TODO: tests
-// 1. test file with code (done)
-// 2. test file with one line comment block (done)
-// 3. test file with one line comment block and code (done)
-// 4. test file with several one line comment blocks and code
-// 5. test file with multiline comment block
-// 6. test file with multiline comment block and code (done)
-// 7. test file with several multiline line comment blocks and code
-// 8. test file with several one line comment blocks, several multiline comment blocks and code
-// 9. test link with absolute path to file that will have result file (?)
-// 10. test link with relative path to file that will have result file (done)
-// 11. test link with absolute path to file that won't have result file (?)
-// 12. test link with relative path to file that won't have result file and it is placed inside the project dir
-// 13. test link with relative path to file that won't have result file and it is placed outside the project dir
-// 13. test link to a website (done)
-// 14. test image with relative path inside project dir
-// 15. test image with absolute path (?)
-// 16. test image with relative path outside project idr
-// 17. test image from website
-// 18. test many files in project
-// 19. test allowed extensions
-// 20. tests for cache
+// * test file with code (done)
+// * test file with one line comment block (done)
+// * test file with one line comment block and code (done)
+// * test file with several one line comment blocks and code
+// * test file with multiline comment block
+// * test file with multiline comment block and code (done)
+// * test file with several multiline line comment blocks and code
+// * test file with several one line comment blocks, several multiline comment blocks and code
+// * test link with relative path to file that will have result file (done)
+// * test link with relative path to file that won't have result file and it is placed inside the project dir (done)
+// * test link with relative path to file that won't have result file and it is placed outside the project dir
+// * test link to a website (done)
+// * test image with relative path inside project dir
+// * test image with relative path outside project idr
+// * test image from website
+// * test many files in project
+// * test allowed extensions
+// * tests for cache
 // tests 1-8 should be duplicated for every programming language with different comments syntax
 // tests for errors
 
 type testCase struct {
-	name          string
-	expectedError error
+	name                        string
+	expectedError               error
+	createResultDirInTestFolder bool
 }
 
 func runTests(t *testing.T, testCases []testCase) {
@@ -46,7 +45,14 @@ func runTests(t *testing.T, testCases []testCase) {
 			pathToProjectRoot := filepath.Join("tests", tc.name, "project")
 			pathToExpectedResultDir := filepath.Join("tests", tc.name, "expected_result")
 
-			resultDir := t.TempDir()
+			var resultDir string
+			if tc.createResultDirInTestFolder {
+				resultDir = filepath.Join("tests", tc.name, "actual_result")
+				os.Mkdir(resultDir, 0755)
+				defer os.RemoveAll(resultDir)
+			} else {
+				resultDir = t.TempDir()
+			}
 
 			// TODO: поддержать кэш в тестах
 			err := buildDocsncode(pathToProjectRoot, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
@@ -89,11 +95,19 @@ func TestLinks(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name:                        "links/link_with_rel_path_to_file_in_project_dir_without_result_file",
+			expectedError:               nil,
+			createResultDirInTestFolder: true,
+		},
+		{
+			name:                        "links/link_with_rel_path_to_file_outside_project_dir_without_result_file",
+			expectedError:               nil,
+			createResultDirInTestFolder: true,
+		},
+		{
 			name:          "links/link_to_website",
 			expectedError: nil,
 		},
-		// TODO: добавить тесты на абсолютные пути в ссылках
-		// TODO: возможно вообще избавиться от возможности задавать абсолютные пути?
 	}
 
 	runTests(t, testCases)

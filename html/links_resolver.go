@@ -51,12 +51,15 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 	absPath := pathString
 	if !filepath.IsAbs(absPath) {
 		absPath = filepath.Join(filepath.Dir(absPathToCurrentFile), absPath)
+	} else {
+		// TODO: make it a warning
+		log.Println("found link with absolute path. It probably won't work on a different host")
 	}
 
 	log.Printf("absPath=%s", absPath)
 
 	if !isPathNested(absPathToProjectRoot, absPath) {
-		relPath, err := filepath.Rel(absPathToResultFile, absPath)
+		relPath, err := filepath.Rel(filepath.Dir(absPathToResultFile), absPath)
 		if err != nil {
 			log.Printf("error on getting relative path for %s, %s: %s", absPathToResultFile, absPath, err)
 			return path
