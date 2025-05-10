@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"docsncode/models"
 )
 
 type modificationTimeBasedBuildCache struct {
@@ -14,7 +16,7 @@ type modificationTimeBasedBuildCache struct {
 	absPathToCacheDataFile string
 	absPathToResultDir     string
 
-	previousCacheEntries map[RelPathFromProjectRoot]cacheEntry
+	previousCacheEntries map[models.RelPathFromProjectRoot]cacheEntry
 	currentCacheEntries  sync.Map
 }
 
@@ -24,8 +26,8 @@ type cacheEntry struct {
 }
 
 type cacheData struct {
-	AbsPathToResultDir string                                `json:"absolute_path_to_result_dir"`
-	Entries            map[RelPathFromProjectRoot]cacheEntry `json:"entries"`
+	AbsPathToResultDir string                                       `json:"absolute_path_to_result_dir"`
+	Entries            map[models.RelPathFromProjectRoot]cacheEntry `json:"entries"`
 }
 
 func getModTimestamp(path string) *int64 {
@@ -42,15 +44,15 @@ func getModTimestamp(path string) *int64 {
 	return &modTimestamp
 }
 
-func getPreviousCacheEntries(absPathToCacheDataFile, absPathToResultDir string) map[RelPathFromProjectRoot]cacheEntry {
+func getPreviousCacheEntries(absPathToCacheDataFile, absPathToResultDir string) map[models.RelPathFromProjectRoot]cacheEntry {
 	file, err := os.Open(absPathToCacheDataFile)
 	if os.IsNotExist(err) {
 		log.Printf("There is no cache file with path %s", absPathToCacheDataFile)
-		return make(map[RelPathFromProjectRoot]cacheEntry)
+		return make(map[models.RelPathFromProjectRoot]cacheEntry)
 	}
 	if err != nil {
 		log.Printf("There is an error on opening cache data file with path %s: %s", absPathToCacheDataFile, err)
-		return make(map[RelPathFromProjectRoot]cacheEntry)
+		return make(map[models.RelPathFromProjectRoot]cacheEntry)
 	}
 	defer file.Close()
 
@@ -58,7 +60,7 @@ func getPreviousCacheEntries(absPathToCacheDataFile, absPathToResultDir string) 
 	err = json.NewDecoder(file).Decode(&previousCacheData)
 	if err != nil {
 		log.Printf("Error reading previous cache data path=%s, err= %s, will init empty cache", absPathToCacheDataFile, err)
-		return make(map[RelPathFromProjectRoot]cacheEntry)
+		return make(map[models.RelPathFromProjectRoot]cacheEntry)
 	} else {
 		log.Printf("Successfully read previous cache data from file")
 	}
@@ -82,7 +84,7 @@ func NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir
 }
 
 // TODO: ок ли, что не возвращаем ошибки?
-func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile RelPathFromProjectRoot) bool {
+func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool {
 	entry, isPresent := c.previousCacheEntries[relPathFromProjectRootToFile]
 	if !isPresent {
 		log.Printf("didn't find entry with path %s in cache", relPathFromProjectRootToFile)
@@ -100,7 +102,7 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 		return true
 	}
 
-	// TODO: заиспользовать utils.ConvertToPathInResultDir
+	// TODO(important): заиспользовать utils.ConvertToPathInResultDir
 	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
 	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
 	if resultFileModTimestamp == nil {
@@ -118,7 +120,7 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 }
 
 // TODO: ок ли, что не возвращаем ошибки?
-func (c *modificationTimeBasedBuildCache) StoreBuildResult(relPathFromProjectRootToFile RelPathFromProjectRoot) {
+func (c *modificationTimeBasedBuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot) {
 	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathFromProjectRootToFile))
 	sourceFileModTimestamp := getModTimestamp(absPathToSourceFile)
 	if sourceFileModTimestamp == nil {
@@ -126,7 +128,7 @@ func (c *modificationTimeBasedBuildCache) StoreBuildResult(relPathFromProjectRoo
 		return
 	}
 
-	// TODO: заиспользовать utils.ConvertToPathInResultDir
+	// TODO(important): заиспользовать utils.ConvertToPathInResultDir
 	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
 	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
 	if resultFileModTimestamp == nil {
@@ -143,9 +145,9 @@ func (c *modificationTimeBasedBuildCache) StoreBuildResult(relPathFromProjectRoo
 }
 
 func (c *modificationTimeBasedBuildCache) Dump() error {
-	entries := make(map[RelPathFromProjectRoot]cacheEntry)
+	entries := make(map[models.RelPathFromProjectRoot]cacheEntry)
 	c.currentCacheEntries.Range(func(path any, entry any) bool {
-		p, ok := path.(RelPathFromProjectRoot)
+		p, ok := path.(models.RelPathFromProjectRoot)
 		if !ok {
 			log.Fatalf("Unexpected key in current cache entries")
 		}

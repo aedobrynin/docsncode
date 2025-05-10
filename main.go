@@ -9,6 +9,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"docsncode/buildcache"
+	"docsncode/models"
 	"docsncode/pathsignorer"
 )
 
@@ -102,8 +103,8 @@ func main() {
 			// Here we use function from [html.go](html/html.go)
 			// @docsncode
 
-			pathToDocsncodeIgnoreFile := filepath.Join(absPathToProjectRoot, ".docsncodeignore")
-			pathsIgnorer, err := pathsignorer.NewGoGitignoreBasedPathsIgnorer(pathsignorer.RelPathFromProjectRoot(pathToDocsncodeIgnoreFile))
+			pathToDocsncodeIgnoreFile := models.RelPathFromProjectRoot(filepath.Join(absPathToProjectRoot, ".docsncodeignore"))
+			pathsIgnorer, err := pathsignorer.NewGoGitignoreBasedPathsIgnorer(pathToDocsncodeIgnoreFile)
 			if err != nil {
 				log.Fatalf("error on building paths ignorer: %v", err)
 			}

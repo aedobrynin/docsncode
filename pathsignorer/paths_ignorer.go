@@ -1,8 +1,7 @@
 package pathsignorer
 
-// TODO: move to models
-type RelPathFromProjectRoot string
+import "docsncode/models"
 
 type PathsIgnorer interface {
-	ShouldIgnore(path RelPathFromProjectRoot) bool
+	ShouldIgnore(path models.RelPathFromProjectRoot) bool
 }
