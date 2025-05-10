@@ -22,7 +22,7 @@ import (
 // * test file with several one line comment blocks, several multiline comment blocks and code
 // * test link with relative path to file that will have result file (done)
 // * test link with relative path to file that won't have result file and it is placed inside the project dir (done)
-// * test link with relative path to file that won't have result file and it is placed outside the project dir
+// * test link with relative path to file that won't have result file and it is placed outside the project dir (done)
 // * test link to a website (done)
 // * test image with relative path inside project dir
 // * test image with relative path outside project idr
@@ -110,6 +110,22 @@ func TestLinks(t *testing.T) {
 		},
 	}
 
+	runTests(t, testCases)
+}
+
+func TestImages(t *testing.T) {
+	testCases := []testCase{
+		{
+			name:                        "images/image_in_project_dir",
+			expectedError:               nil,
+			createResultDirInTestFolder: true,
+		},
+		{
+			name:                        "images/image_outside_project_dir",
+			expectedError:               nil,
+			createResultDirInTestFolder: true,
+		},
+	}
 	runTests(t, testCases)
 }
 
