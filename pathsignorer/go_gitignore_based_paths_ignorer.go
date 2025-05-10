@@ -6,13 +6,15 @@ import (
 	"os"
 
 	ignore "github.com/sabhiram/go-gitignore"
+
+	"docsncode/models"
 )
 
 type goGitignoreBasedPathsIgnorer struct {
 	ignorer ignore.GitIgnore
 }
 
-func NewGoGitignoreBasedPathsIgnorer(pathToDocsncodeIgnore RelPathFromProjectRoot) (PathsIgnorer, error) {
+func NewGoGitignoreBasedPathsIgnorer(pathToDocsncodeIgnore models.RelPathFromProjectRoot) (PathsIgnorer, error) {
 	ignorer, err := ignore.CompileIgnoreFile(string(pathToDocsncodeIgnore))
 	if os.IsNotExist(err) {
 		log.Println("do not see .docsncodeignore file, will build empty paths ignorer")
@@ -25,6 +27,6 @@ func NewGoGitignoreBasedPathsIgnorer(pathToDocsncodeIgnore RelPathFromProjectRoo
 	}, nil
 }
 
-func (i *goGitignoreBasedPathsIgnorer) ShouldIgnore(path RelPathFromProjectRoot) bool {
+func (i *goGitignoreBasedPathsIgnorer) ShouldIgnore(path models.RelPathFromProjectRoot) bool {
 	return i.ignorer.MatchesPath(string(path))
 }

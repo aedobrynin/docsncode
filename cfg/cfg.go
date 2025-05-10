@@ -48,7 +48,6 @@ var (
 		"C#":     "csharp",
 	}
 
-	// TODO: нет ли проблем с тем, что эти токены совпадают?
 	COMMENT_BLOCK_START_TOKEN = "@docsncode"
 	COMMENT_BLOCK_END_TOKEN   = "@docsncode"
 )

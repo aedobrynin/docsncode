@@ -12,24 +12,14 @@ import (
 )
 
 // TODO: tests
-// * test file with code (done)
-// * test file with one line comment block (done)
-// * test file with one line comment block and code (done)
 // * test file with several one line comment blocks and code
 // * test file with multiline comment block
-// * test file with multiline comment block and code (done)
 // * test file with several multiline line comment blocks and code
 // * test file with several one line comment blocks, several multiline comment blocks and code
-// * test link with relative path to file that will have result file (done)
-// * test link with relative path to file that won't have result file and it is placed inside the project dir (done)
-// * test link with relative path to file that won't have result file and it is placed outside the project dir (done)
-// * test link to a website (done)
-// * test image with relative path inside project dir
-// * test image with relative path outside project idr
-// * test image from website
 // * test many files in project
 // * test allowed extensions
 // * tests for cache
+// * tests for .docsncodeignore
 // tests 1-8 should be duplicated for every programming language with different comments syntax
 // tests for errors
 
@@ -124,6 +114,10 @@ func TestImages(t *testing.T) {
 			name:                        "images/image_outside_project_dir",
 			expectedError:               nil,
 			createResultDirInTestFolder: true,
+		},
+		{
+			name:          "images/image_from_website",
+			expectedError: nil,
 		},
 	}
 	runTests(t, testCases)

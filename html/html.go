@@ -19,13 +19,12 @@ import (
 	"docsncode/cfg"
 )
 
-// TODO: порефакторить код с парсингом блоков
+// TODO(important): порефакторить код с парсингом блоков
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
 // TODO: не подключать highlight.js, если в файле не будет блоков с кодом
 // TODO: вынести настройку tab-size в конфиг
-// TODO: make internal
-var HTML_TEMPLATE = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
+var htmlTemplate = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html>
 <html>
 <head>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/default.min.css">
@@ -207,9 +206,6 @@ func parseMultilineCommentBlock(scanner *bufio.Scanner, startLine string, langua
 }
 
 func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) ([]byte, error) {
-	// TODO: поддержка ссылок с абсолютным путём относительно корня проекта
-	// TODO: убрать необходимость добавления .html для ссылки
-
 	// TODO: не создавать новый конвертер на каждый файл
 	converter := goldmark.New(
 		// TODO: подумать, не нужен ли RenderModeServer?
@@ -245,7 +241,6 @@ func calculateIndentSpacesCnt(indent Indent) int {
 
 // Assumes that comment block start line is already parsed
 func parseAndBuildCommentBlock(scanner *bufio.Scanner, startLine string, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, isMultiline bool) (*Block, error) {
-	// TODO: учитывать отступ всего блока с комментарием
 	log.Printf("Start parsing and building comment block, isMultiline=%t", isMultiline)
 
 	var rawContent []byte
@@ -282,7 +277,7 @@ func EscapeHTMLInCodeBlocks(blocks []Block) {
 	}
 }
 
-// TODO: игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
+// TODO(important): игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
 func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
 	blocks := []Block{}
@@ -342,7 +337,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 
 	resultBuf := bytes.NewBuffer([]byte{})
 
-	err := HTML_TEMPLATE.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: languageInfo.HighlightJsLanguageName})
+	err := htmlTemplate.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: languageInfo.HighlightJsLanguageName})
 
 	if err != nil {
 		return nil, fmt.Errorf("error on filling HTML template: %w", err)

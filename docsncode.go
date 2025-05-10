@@ -10,6 +10,7 @@ import (
 	"docsncode/buildcache"
 	"docsncode/cfg"
 	"docsncode/html"
+	"docsncode/models"
 	"docsncode/pathsignorer"
 	"docsncode/utils"
 )
@@ -67,7 +68,7 @@ type buildTask struct {
 	absPathToSourceFile  string
 	absPathToResultDir   string
 	absPathToResultFile  string
-	relPathToFile        string
+	relPathToFile        models.RelPathFromProjectRoot
 }
 
 func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) {
@@ -89,17 +90,19 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 			return filepath.SkipDir
 		}
 
-		relPathToEntry, err := filepath.Rel(pathToProjectRoot, absolutePathToEntry)
-		if err != nil {
-			log.Printf("error on building rel path to source file: %v", err)
-			return nil
+		var relPathToEntry models.RelPathFromProjectRoot
+		{
+			relPath, err := filepath.Rel(pathToProjectRoot, absolutePathToEntry)
+			if err != nil {
+				log.Printf("error on building rel path to source file: %v", err)
+				return nil
+			}
+			relPathToEntry = models.RelPathFromProjectRoot(relPath)
 		}
 
 		if entry.IsDir() {
 			log.Printf("start walking through %s directory", path)
-
-			// TODO: поправить RelPathFromProjectRoot
-			if pathsIgnorer.ShouldIgnore(pathsignorer.RelPathFromProjectRoot(relPathToEntry)) {
+			if pathsIgnorer.ShouldIgnore(relPathToEntry) {
 				log.Printf("paths ignorer said to ignore the directory")
 				return nil
 			}
@@ -116,14 +119,12 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 			return nil
 		}
 
-		// TODO: поправить RelPathFromProjectRoot
-		if !buildCache.ShouldBuild(buildcache.RelPathFromProjectRoot(relPathToEntry)) {
+		if !buildCache.ShouldBuild(relPathToEntry) {
 			log.Printf("current result is actual according to build cache")
 			return nil
 		}
 
-		// TODO: поправить RelPathFromProjectRoot
-		if pathsIgnorer.ShouldIgnore(pathsignorer.RelPathFromProjectRoot(relPathToEntry)) {
+		if pathsIgnorer.ShouldIgnore(relPathToEntry) {
 			log.Printf("paths ignorer said to ignore the file")
 			return nil
 		}
@@ -136,15 +137,6 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 		}
 
 		log.Printf("pushed build task for path %s", absolutePathToEntry)
-
-		err = buildDocsncodeForFile(absolutePathToEntry, targetPath, pathToResultDir, pathToProjectRoot)
-		if err != nil {
-			log.Printf("error on building docsncode for %s: %v", path, err)
-			return nil
-		}
-		// TODO: поправить RelPathFromProjectRoot
-		buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(relPathToEntry))
-
 		return nil
 	})
 }
@@ -160,8 +152,8 @@ func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache) 
 			if err != nil {
 				log.Printf("Error on building result for path=%s, err=%s", task.relPathToFile, err)
 			} else {
-				// TODO: поправить RelPathFromProjectRoot
-				buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(task.relPathToFile))
+
+				buildCache.StoreSuccessfulBuildResult(task.relPathToFile)
 			}
 		}()
 	}

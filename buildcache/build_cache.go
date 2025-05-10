@@ -1,17 +1,15 @@
 package buildcache
 
-// TODO: move to models and use in other places?
-type RelPathFromProjectRoot string
+import "docsncode/models"
 
-// TODO: учитывать версию утилиты в кэше?
+// TODO(important): учитывать версию утилиты в кэше?
 // Например, если в новой версии утилиты меняется отображение для уже существующих элементов,
 // 	то необходимо перегенерить результат
 
 type BuildCache interface {
 	// ShouldBuild and StoreBuildResult can be called concurrently
-	ShouldBuild(relPathFromProjectRootToFile RelPathFromProjectRoot) bool
-	// TODO: rename if only one argument
-	StoreBuildResult(relPathFromProjectRootToFile RelPathFromProjectRoot)
+	ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool
+	StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot)
 
 	// Dump should be called not more than once.
 	// The call must be after all ShouldBuild and StoreBuildResult calls.
