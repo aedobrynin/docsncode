@@ -100,7 +100,6 @@ func main() {
 
 			// @docsncode
 			// Here we use function from [html.go](html/html.go)
-			// kek
 			// @docsncode
 
 			pathToDocsncodeIgnoreFile := filepath.Join(absPathToProjectRoot, ".docsncodeignore")

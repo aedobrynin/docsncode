@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"docsncode/buildcache"
 	"docsncode/cfg"
@@ -26,7 +27,7 @@ func createFileAndNeededDirs(path string) (*os.File, error) {
 	return file, nil
 }
 
-func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToResultDir, absPathToProjectRoot string) error {
+func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile string) error {
 	fileExtension := filepath.Ext(absPathToSourceFile)
 	log.Printf("File extension is: %s", fileExtension)
 
@@ -61,19 +62,17 @@ func buildDocsncodeForFile(absPathToSourceFile, absPathToResultFile, absPathToRe
 	return nil
 }
 
-func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
-	pathToProjectRoot, err := filepath.Abs(pathToProjectRoot)
-	if err != nil {
-		return fmt.Errorf("couldn't get absolute path for project root directory: %w", err)
-	}
+type buildTask struct {
+	absPathToProjectRoot string
+	absPathToSourceFile  string
+	absPathToResultDir   string
+	absPathToResultFile  string
+	relPathToFile        string
+}
 
-	pathToResultDir, err = filepath.Abs(pathToResultDir)
-	if err != nil {
-		return fmt.Errorf("couldn't get absolute path for result directory: %w", err)
-	}
-
-	// TODO: параллельная обработка
-	return filepath.WalkDir(pathToProjectRoot, func(path string, entry os.DirEntry, err error) error {
+func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) {
+	defer close(tasksChan)
+	filepath.WalkDir(pathToProjectRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			log.Printf("error on opening %s: %v", path, err)
 			return err
@@ -129,6 +128,15 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 			return nil
 		}
 
+		tasksChan <- buildTask{
+			absPathToProjectRoot: pathToProjectRoot,
+			absPathToSourceFile:  absolutePathToEntry,
+			absPathToResultDir:   pathToResultDir,
+			absPathToResultFile:  targetPath,
+		}
+
+		log.Printf("pushed build task for path %s", absolutePathToEntry)
+
 		err = buildDocsncodeForFile(absolutePathToEntry, targetPath, pathToResultDir, pathToProjectRoot)
 		if err != nil {
 			log.Printf("error on building docsncode for %s: %v", path, err)
@@ -139,4 +147,42 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 
 		return nil
 	})
+}
+
+func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache) {
+	wg := sync.WaitGroup{}
+
+	for task := range tasksChan {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile)
+			if err != nil {
+				log.Printf("Error on building result for path=%s, err=%s", task.relPathToFile, err)
+			} else {
+				// TODO: поправить RelPathFromProjectRoot
+				buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(task.relPathToFile))
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
+	pathToProjectRoot, err := filepath.Abs(pathToProjectRoot)
+	if err != nil {
+		return fmt.Errorf("couldn't get absolute path for project root directory: %w", err)
+	}
+
+	pathToResultDir, err = filepath.Abs(pathToResultDir)
+	if err != nil {
+		return fmt.Errorf("couldn't get absolute path for result directory: %w", err)
+	}
+
+	buildTasks := make(chan buildTask, 1)
+
+	go pushBuildTasks(buildTasks, pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
+	processTasks(buildTasks, buildCache)
+	return nil
 }
