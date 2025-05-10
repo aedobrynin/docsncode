@@ -66,7 +66,6 @@ type buildTask struct {
 	absPathToSourceFile  string
 	absPathToResultDir   string
 	absPathToResultFile  string
-	relPathToFile        string
 }
 
 func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) {
@@ -132,24 +131,25 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 			absPathToSourceFile:  absolutePathToEntry,
 			absPathToResultDir:   pathToResultDir,
 			absPathToResultFile:  targetPath,
-			relPathToFile:        relPathToEntry,
 		}
 
 		log.Printf("pushed build task for path %s", absolutePathToEntry)
+
+		err = buildDocsncodeForFile(absolutePathToEntry, targetPath, pathToResultDir, pathToProjectRoot)
+		if err != nil {
+			log.Printf("error on building docsncode for %s: %v", path, err)
+			return nil
+		}
+		// TODO: поправить RelPathFromProjectRoot
+		buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(relPathToEntry))
+
 		return nil
 	})
 }
 
-func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache) {
+func processTasks(tasksChan <-chan buildTask) {
 	for task := range tasksChan {
-		// TODO: run in a separate goroutine
-		err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile)
-		if err != nil {
-			log.Printf("error on building docsncode for %s: %v", task.absPathToSourceFile, err)
-			continue
-		}
-		// TODO: поправить RelPathFromProjectRoot
-		buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(task.relPathToFile))
+		buildDocsncodeForFile(task.absPathToSourceFile, task.absPathToResultFile, task.absPathToResultDir, task.absPathToProjectRoot)
 	}
 }
 
@@ -167,6 +167,6 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 	buildTasks := make(chan buildTask, 1)
 
 	go pushBuildTasks(buildTasks, pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
-	processTasks(buildTasks, buildCache)
+	processTasks(buildTasks)
 	return nil
 }
