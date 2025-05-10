@@ -8,8 +8,12 @@ type RelPathFromProjectRoot string
 // 	то необходимо перегенерить результат
 
 type BuildCache interface {
+	// ShouldBuild and StoreBuildResult can be called concurrently
 	ShouldBuild(relPathFromProjectRootToFile RelPathFromProjectRoot) bool
 	// TODO: rename if only one argument
 	StoreBuildResult(relPathFromProjectRootToFile RelPathFromProjectRoot)
+
+	// Dump should be called not more than once.
+	// The call must be after all ShouldBuild and StoreBuildResult calls.
 	Dump() error
 }
