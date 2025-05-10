@@ -8,7 +8,9 @@ import "docsncode/models"
 
 type BuildCache interface {
 	// ShouldBuild and StoreBuildResult can be called concurrently
+	// TODO: ок ли, что не возвращаем ошибки?
 	ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool
+	// TODO: ок ли, что не возвращаем ошибки?
 	StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot)
 
 	// Dump should be called not more than once.
