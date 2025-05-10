@@ -23,19 +23,27 @@ import (
 // This [link](https://example.com "link with a title") has a title
 // @docsncode
 
-func initBuildCache(forceRebuild, noCache bool, absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile string) buildcache.BuildCache {
-	if noCache {
+func initBuildCache(forceRebuild bool, cacheType string, absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile string) buildcache.BuildCache {
+	if cacheType == "none" {
 		log.Printf("will use always empty build cache")
 		return buildcache.NewAlwaysEmptyBuildCache()
 	}
 
-	modificationTimeBasedBuildCache := buildcache.NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile)
+	var cache buildcache.BuildCache
+	if cacheType == "modtime" {
+		cache = buildcache.NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile)
+	} else if cacheType == "hash" {
+		cache = buildcache.NewHashBasedBuildCache(absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile)
+	} else {
+		log.Fatalf("Couldn't create cache with type=%s", cacheType)
+	}
+
 	if forceRebuild {
 		log.Printf("will use force rebuild cache")
-		return buildcache.NewForceRebuildCache(modificationTimeBasedBuildCache)
+		return buildcache.NewForceRebuildCache(cache)
 	}
-	log.Printf("will use modification-time-based build cache")
-	return modificationTimeBasedBuildCache
+	log.Printf("will use %s build cache", cacheType)
+	return cache
 }
 
 func main() {
@@ -49,12 +57,12 @@ func main() {
 				Name:  "force-rebuild",
 				Usage: "Ignore cached result and build new result",
 			},
-			&cli.BoolFlag{
-				Name:  "no-cache",
-				Usage: "Ignore cached result and do not cache new result",
+			&cli.StringFlag{
+				Name:  "cache",
+				Usage: "Select cache type (none — no cache, modtime — modification-time-based cache, hash — hash-based cache)",
 			},
 		},
-		UsageText: "docsncode <path-to-project-root> <path-to-result-dir> [path-to-cache-file] [--force-rebuild] [--no-cache]",
+		UsageText: "docsncode <path-to-project-root> <path-to-result-dir> [path-to-cache-file] [--force-rebuild] [--cache CACHE_TYPE]",
 		Action: func(_ context.Context, c *cli.Command) error {
 			if c.Args().Len() < 1 {
 				log.Fatal("path-to-project-root is not provided")
@@ -72,9 +80,12 @@ func main() {
 				pathToCacheFile = filepath.Join(pathToProjectRoot, ".docsncode_cache.json")
 			}
 			forceRebuild := c.Bool("force-rebuild")
-			noCache := c.Bool("no-cache")
+			cacheType := c.String("cache")
+			if cacheType == "" {
+				cacheType = "modtime"
+			}
 
-			log.Printf("path_to_project_root=%s, path_to_result_dir=%s, path_to_cache_file=%s, force_rebuild=%t, no_cache=%t", pathToProjectRoot, pathToResultDir, pathToCacheFile, forceRebuild, noCache)
+			log.Printf("path_to_project_root=%s, path_to_result_dir=%s, path_to_cache_file=%s, force_rebuild=%t, cacheType=%s", pathToProjectRoot, pathToResultDir, pathToCacheFile, forceRebuild, cacheType)
 
 			// TODO: правда ли, что это должно происходить тут?
 			err := os.MkdirAll(pathToResultDir, 0755)
@@ -97,7 +108,7 @@ func main() {
 				log.Fatalf("error on getting abs path to cache data file: %v", err)
 			}
 
-			buildCache := initBuildCache(forceRebuild, noCache, absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile)
+			buildCache := initBuildCache(forceRebuild, cacheType, absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile)
 
 			// @docsncode
 			// Here we use function from [html.go](html/html.go)
