@@ -11,23 +11,20 @@ import (
 	"docsncode/models"
 )
 
+type modificationTimeBasedCacheEntry struct {
+	SourceFileModTimestamp int64 `json:"source_file_modification_timestamp"`
+	ResultFileModTimestamp int64 `json:"result_file_modification_timestamp"`
+}
+
+type modificationTimeBasedCacheData = cacheData[modificationTimeBasedCacheEntry]
+
 type modificationTimeBasedBuildCache struct {
 	absPathToProjectRoot   string
 	absPathToCacheDataFile string
 	absPathToResultDir     string
 
-	previousCacheEntries map[models.RelPathFromProjectRoot]cacheEntry
+	previousCacheEntries map[models.RelPathFromProjectRoot]modificationTimeBasedCacheEntry
 	currentCacheEntries  sync.Map
-}
-
-type cacheEntry struct {
-	SourceFileModTimestamp int64 `json:"source_file_modification_timestamp"`
-	ResultFileModTimestamp int64 `json:"result_file_modification_timestamp"`
-}
-
-type cacheData struct {
-	AbsPathToResultDir string                                       `json:"absolute_path_to_result_dir"`
-	Entries            map[models.RelPathFromProjectRoot]cacheEntry `json:"entries"`
 }
 
 func getModTimestamp(path string) *int64 {
@@ -44,46 +41,16 @@ func getModTimestamp(path string) *int64 {
 	return &modTimestamp
 }
 
-func getPreviousCacheEntries(absPathToCacheDataFile, absPathToResultDir string) map[models.RelPathFromProjectRoot]cacheEntry {
-	file, err := os.Open(absPathToCacheDataFile)
-	if os.IsNotExist(err) {
-		log.Printf("There is no cache file with path %s", absPathToCacheDataFile)
-		return make(map[models.RelPathFromProjectRoot]cacheEntry)
-	}
-	if err != nil {
-		log.Printf("There is an error on opening cache data file with path %s: %s", absPathToCacheDataFile, err)
-		return make(map[models.RelPathFromProjectRoot]cacheEntry)
-	}
-	defer file.Close()
-
-	var previousCacheData cacheData
-	err = json.NewDecoder(file).Decode(&previousCacheData)
-	if err != nil {
-		log.Printf("Error reading previous cache data path=%s, err= %s, will init empty cache", absPathToCacheDataFile, err)
-		return make(map[models.RelPathFromProjectRoot]cacheEntry)
-	} else {
-		log.Printf("Successfully read previous cache data from file")
-	}
-
-	if previousCacheData.AbsPathToResultDir != absPathToResultDir {
-		log.Printf("Cache data from file was built for different result dir, will init empty cache")
-		return nil
-	}
-
-	return previousCacheData.Entries
-}
-
 func NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir, absPathToCacheDataFile string) BuildCache {
 	return &modificationTimeBasedBuildCache{
 		absPathToProjectRoot:   absPathToProjectRoot,
 		absPathToCacheDataFile: absPathToCacheDataFile,
 		absPathToResultDir:     absPathToResultDir,
-		previousCacheEntries:   getPreviousCacheEntries(absPathToCacheDataFile, absPathToResultDir),
+		previousCacheEntries:   getPreviousCacheEntries[modificationTimeBasedCacheEntry](absPathToCacheDataFile, absPathToResultDir),
 		currentCacheEntries:    sync.Map{},
 	}
 }
 
-// TODO: ок ли, что не возвращаем ошибки?
 func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool {
 	entry, isPresent := c.previousCacheEntries[relPathFromProjectRootToFile]
 	if !isPresent {
@@ -119,7 +86,6 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 	return false
 }
 
-// TODO: ок ли, что не возвращаем ошибки?
 func (c *modificationTimeBasedBuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot) {
 	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathFromProjectRootToFile))
 	sourceFileModTimestamp := getModTimestamp(absPathToSourceFile)
@@ -138,27 +104,27 @@ func (c *modificationTimeBasedBuildCache) StoreSuccessfulBuildResult(relPathFrom
 
 	c.currentCacheEntries.Store(
 		relPathFromProjectRootToFile,
-		cacheEntry{
+		modificationTimeBasedCacheEntry{
 			SourceFileModTimestamp: *sourceFileModTimestamp,
 			ResultFileModTimestamp: *resultFileModTimestamp,
 		})
 }
 
 func (c *modificationTimeBasedBuildCache) Dump() error {
-	entries := make(map[models.RelPathFromProjectRoot]cacheEntry)
+	entries := make(map[models.RelPathFromProjectRoot]modificationTimeBasedCacheEntry)
 	c.currentCacheEntries.Range(func(path any, entry any) bool {
 		p, ok := path.(models.RelPathFromProjectRoot)
 		if !ok {
 			log.Fatalf("Unexpected key in current cache entries")
 		}
-		e, ok := entry.(cacheEntry)
+		e, ok := entry.(modificationTimeBasedCacheEntry)
 		if !ok {
 			log.Fatalf("Unexpected value in current cache entries")
 		}
 		entries[p] = e
 		return true
 	})
-	cacheData := cacheData{
+	cacheData := modificationTimeBasedCacheData{
 		AbsPathToResultDir: c.absPathToResultDir,
 		Entries:            entries,
 	}
