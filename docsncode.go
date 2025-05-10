@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"docsncode/buildcache"
 	"docsncode/cfg"
@@ -66,6 +67,7 @@ type buildTask struct {
 	absPathToSourceFile  string
 	absPathToResultDir   string
 	absPathToResultFile  string
+	relPathToFile        string
 }
 
 func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) {
@@ -147,10 +149,24 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 	})
 }
 
-func processTasks(tasksChan <-chan buildTask) {
+func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache) {
+	wg := sync.WaitGroup{}
+
 	for task := range tasksChan {
-		buildDocsncodeForFile(task.absPathToSourceFile, task.absPathToResultFile, task.absPathToResultDir, task.absPathToProjectRoot)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile)
+			if err != nil {
+				log.Printf("Error on building result for path=%s, err=%s", task.relPathToFile, err)
+			} else {
+				// TODO: поправить RelPathFromProjectRoot
+				buildCache.StoreBuildResult(buildcache.RelPathFromProjectRoot(task.relPathToFile))
+			}
+		}()
 	}
+
+	wg.Wait()
 }
 
 func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
@@ -167,6 +183,6 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 	buildTasks := make(chan buildTask, 1)
 
 	go pushBuildTasks(buildTasks, pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
-	processTasks(buildTasks)
+	processTasks(buildTasks, buildCache)
 	return nil
 }

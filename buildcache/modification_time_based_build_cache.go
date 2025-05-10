@@ -6,13 +6,16 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 type modificationTimeBasedBuildCache struct {
 	absPathToProjectRoot   string
 	absPathToCacheDataFile string
-	previousCacheEntries   map[RelPathFromProjectRoot]cacheEntry
-	currentCacheData       cacheData
+	absPathToResultDir     string
+
+	previousCacheEntries map[RelPathFromProjectRoot]cacheEntry
+	currentCacheEntries  sync.Map
 }
 
 type cacheEntry struct {
@@ -72,11 +75,9 @@ func NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir
 	return &modificationTimeBasedBuildCache{
 		absPathToProjectRoot:   absPathToProjectRoot,
 		absPathToCacheDataFile: absPathToCacheDataFile,
+		absPathToResultDir:     absPathToResultDir,
 		previousCacheEntries:   getPreviousCacheEntries(absPathToCacheDataFile, absPathToResultDir),
-		currentCacheData: cacheData{
-			AbsPathToResultDir: absPathToResultDir,
-			Entries:            make(map[RelPathFromProjectRoot]cacheEntry),
-		},
+		currentCacheEntries:    sync.Map{},
 	}
 }
 
@@ -100,7 +101,7 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 	}
 
 	// TODO: заиспользовать utils.ConvertToPathInResultDir
-	absPathToResultFile := filepath.Join(c.currentCacheData.AbsPathToResultDir, string(relPathFromProjectRootToFile)+".html")
+	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
 	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
 	if resultFileModTimestamp == nil {
 		log.Printf("result file modification timestamp is nil")
@@ -111,7 +112,7 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 		return true
 	}
 
-	c.currentCacheData.Entries[relPathFromProjectRootToFile] = entry
+	c.currentCacheEntries.Store(relPathFromProjectRootToFile, entry)
 
 	return false
 }
@@ -126,20 +127,40 @@ func (c *modificationTimeBasedBuildCache) StoreBuildResult(relPathFromProjectRoo
 	}
 
 	// TODO: заиспользовать utils.ConvertToPathInResultDir
-	absPathToResultFile := filepath.Join(c.currentCacheData.AbsPathToResultDir, string(relPathFromProjectRootToFile)+".html")
+	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
 	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
 	if resultFileModTimestamp == nil {
 		log.Printf("result file modification timestamp is nil, can't store it in cache")
 		return
 	}
 
-	c.currentCacheData.Entries[relPathFromProjectRootToFile] = cacheEntry{
-		SourceFileModTimestamp: *sourceFileModTimestamp,
-		ResultFileModTimestamp: *resultFileModTimestamp,
-	}
+	c.currentCacheEntries.Store(
+		relPathFromProjectRootToFile,
+		cacheEntry{
+			SourceFileModTimestamp: *sourceFileModTimestamp,
+			ResultFileModTimestamp: *resultFileModTimestamp,
+		})
 }
 
 func (c *modificationTimeBasedBuildCache) Dump() error {
+	entries := make(map[RelPathFromProjectRoot]cacheEntry)
+	c.currentCacheEntries.Range(func(path any, entry any) bool {
+		p, ok := path.(RelPathFromProjectRoot)
+		if !ok {
+			log.Fatalf("Unexpected key in current cache entries")
+		}
+		e, ok := entry.(cacheEntry)
+		if !ok {
+			log.Fatalf("Unexpected value in current cache entries")
+		}
+		entries[p] = e
+		return true
+	})
+	cacheData := cacheData{
+		AbsPathToResultDir: c.absPathToResultDir,
+		Entries:            entries,
+	}
+
 	file, err := os.Create(c.absPathToCacheDataFile)
 	if err != nil {
 		return fmt.Errorf("error on creating file for cache dump: %w", err)
@@ -147,7 +168,7 @@ func (c *modificationTimeBasedBuildCache) Dump() error {
 	defer file.Close()
 
 	enc := json.NewEncoder(file)
-	err = enc.Encode(c.currentCacheData)
+	err = enc.Encode(cacheData)
 	if err != nil {
 		return fmt.Errorf("error on dumping cache to file: %w", err)
 	}
