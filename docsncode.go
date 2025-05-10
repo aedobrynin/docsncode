@@ -104,8 +104,9 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 			log.Printf("start walking through %s directory", path)
 			if pathsIgnorer.ShouldIgnore(relPathToEntry) {
 				log.Printf("paths ignorer said to ignore the directory")
-				return nil
+				return filepath.SkipDir
 			}
+			return nil
 		}
 
 		log.Printf("start building docsncode for %s", path)
@@ -134,6 +135,7 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 			absPathToSourceFile:  absolutePathToEntry,
 			absPathToResultDir:   pathToResultDir,
 			absPathToResultFile:  targetPath,
+			relPathToFile:        relPathToEntry,
 		}
 
 		log.Printf("pushed build task for path %s", absolutePathToEntry)

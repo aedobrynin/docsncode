@@ -62,7 +62,7 @@ func main() {
 				Usage: "Select cache type (none — no cache, modtime — modification-time-based cache, hash — hash-based cache)",
 			},
 		},
-		UsageText: "docsncode <path-to-project-root> <path-to-result-dir> [path-to-cache-file] [--force-rebuild] [--no-cache]",
+		UsageText: "docsncode <path-to-project-root> <path-to-result-dir> [path-to-cache-file] [--force-rebuild] [--cache CACHE_TYPE]",
 		Action: func(_ context.Context, c *cli.Command) error {
 			if c.Args().Len() < 1 {
 				log.Fatal("path-to-project-root is not provided")
