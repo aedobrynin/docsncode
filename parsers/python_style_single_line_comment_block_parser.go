@@ -4,6 +4,6 @@ var (
 	defaultPythonStyleSingleLineCommentBlockParser = newBaseSingleLineCommentBlockParser("#")
 )
 
-func NewCPythonStyleSingleLineCommentBlockParser() CommentParser {
+func NewPythonStyleSingleLineCommentBlockParser() CommentParser {
 	return defaultPythonStyleSingleLineCommentBlockParser
 }

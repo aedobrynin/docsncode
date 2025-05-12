@@ -15,6 +15,7 @@ const (
 	ObjectiveC Language = "Objective-C"
 	Perl       Language = "Perl"
 	PHP        Language = "PHP"
+	Python     Language = "Python"
 	Rust       Language = "Rust"
 	Scala      Language = "Scala"
 	Swift      Language = "Swift"
@@ -25,7 +26,8 @@ const (
 type CommentType string
 
 const (
-	CStyle CommentType = "C-style"
+	CStyle      CommentType = "C-style"
+	PythonStyle CommentType = "Python-style"
 )
 
 // TODO: унести всё в yaml-конфиг
@@ -96,5 +98,8 @@ func GetHighlightJSLanguageName(language Language) *string {
 
 func GetLanguageCommentsType(language Language) CommentType {
 	// TODO(important): support other comment styles
+	if language == Python {
+		return PythonStyle
+	}
 	return CStyle
 }
