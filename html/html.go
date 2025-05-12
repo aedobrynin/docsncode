@@ -99,13 +99,13 @@ func EscapeHTMLInCodeBlocks(blocks []Block) {
 
 // TODO(important): игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
-func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
+func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
 	blocks := []Block{}
 	scanner := bufio.NewScanner(file)
 
 	var current_code_block_content []byte
 
-	// TODO: move higher on a call stack
+	// TODO(important): move higher on a call stack
 	parsers := []parsers.CommentParser{
 		parsers.NewCStyleSingleLineCommentBlockParser(),
 		parsers.NewCStyleMultilineCommentBlockParser(),
@@ -135,7 +135,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 
 			parsingResult, err := parser.Parse(line, scanner)
 			if err != nil {
-				log.Println("error on parsing: %s", err)
+				log.Printf("error on parsing: %s", err)
 				anyParserTriggered = false
 				continue
 			}
@@ -183,7 +183,7 @@ func BuildHTML(file *os.File, languageInfo cfg.LanguageInfo, absPathToProjectRoo
 
 	resultBuf := bytes.NewBuffer([]byte{})
 
-	err := htmlTemplate.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: languageInfo.HighlightJsLanguageName})
+	err := htmlTemplate.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: cfg.GetHighlightJSLanguageName(language)})
 
 	if err != nil {
 		return nil, fmt.Errorf("error on filling HTML template: %w", err)
