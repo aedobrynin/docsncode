@@ -15,6 +15,7 @@ import (
 
 	"docsncode/cfg"
 	"docsncode/parsers"
+	"docsncode/pathsignorer"
 )
 
 // TODO(important): порефакторить код с парсингом блоков
@@ -66,7 +67,7 @@ type Block struct {
 	IndentSpacesCnt int
 }
 
-func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) ([]byte, error) {
+func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) ([]byte, error) {
 	// TODO: не создавать новый конвертер на каждый файл
 	converter := goldmark.New(
 		// TODO: подумать, не нужен ли RenderModeServer?
@@ -77,6 +78,7 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 				absPathToCurrentFile: absPathToCurrentFile,
 				absPathToResultDir:   absPathToResultDir,
 				absPathToResultFile:  absPathToResultFile,
+				pathsIgnorer:         pathsIgnorer,
 			}, 0)),
 		),
 	)
@@ -117,7 +119,7 @@ func buildParsersByLanguage(language cfg.Language) []parsers.CommentParser {
 
 // TODO(important): игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
-func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) (*bytes.Buffer, error) {
+func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) (*bytes.Buffer, error) {
 	blocks := []Block{}
 	scanner := bufio.NewScanner(file)
 
@@ -154,7 +156,7 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 				continue
 			}
 
-			htmlContent, err := convertMarkdownToHTML(parsingResult.Content, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile)
+			htmlContent, err := convertMarkdownToHTML(parsingResult.Content, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile, pathsIgnorer)
 			if err != nil {
 				return nil, err
 			}

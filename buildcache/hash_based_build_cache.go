@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"docsncode/models"
+	"docsncode/utils"
 )
 
 type hashBasedCacheEntry struct {
@@ -72,8 +73,11 @@ func (c *hashBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.Re
 		return true
 	}
 
-	// TODO(important): заиспользовать utils.ConvertToPathInResultDir
-	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
+	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
+	if err != nil {
+		log.Printf("Couldn't get abs path to result file: %s", err)
+	}
+
 	resultFileHash, err := calculateSHA256(absPathToResultFile)
 	if err != nil {
 		log.Printf("Couldn't calculate hash of result file, err=%s", err)
@@ -97,8 +101,11 @@ func (c *hashBasedBuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootT
 		return
 	}
 
-	// TODO(important): заиспользовать utils.ConvertToPathInResultDir
-	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
+	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
+	if err != nil {
+		log.Printf("Couldn't get abs path to result file: %s", err)
+	}
+
 	resultFileHash, err := calculateSHA256(absPathToResultFile)
 	if err != nil {
 		log.Printf("Couldn't calculate hash of result file, err=%s. Can't store it in cache", err)

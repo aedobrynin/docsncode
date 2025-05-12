@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"docsncode/models"
+	"docsncode/utils"
 )
 
 type modificationTimeBasedCacheEntry struct {
@@ -69,8 +70,11 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 		return true
 	}
 
-	// TODO(important): заиспользовать utils.ConvertToPathInResultDir
-	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
+	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
+	if err != nil {
+		log.Printf("Couldn't get abs path to result file: %s", err)
+	}
+
 	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
 	if resultFileModTimestamp == nil {
 		log.Printf("result file modification timestamp is nil")
@@ -94,8 +98,11 @@ func (c *modificationTimeBasedBuildCache) StoreSuccessfulBuildResult(relPathFrom
 		return
 	}
 
-	// TODO(important): заиспользовать utils.ConvertToPathInResultDir
-	absPathToResultFile := filepath.Join(c.absPathToResultDir, string(relPathFromProjectRootToFile)+".html")
+	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
+	if err != nil {
+		log.Printf("Couldn't get abs path to result file: %s", err)
+	}
+
 	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
 	if resultFileModTimestamp == nil {
 		log.Printf("result file modification timestamp is nil, can't store it in cache")

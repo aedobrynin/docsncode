@@ -31,7 +31,7 @@ func createFileAndNeededDirs(path string) (*os.File, error) {
 	return file, nil
 }
 
-func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile string) error {
+func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) error {
 	fileExtension := filepath.Ext(absPathToSourceFile)
 	log.Printf("File extension is: %s", fileExtension)
 
@@ -47,7 +47,7 @@ func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToR
 	}
 	defer file.Close()
 
-	html, err := html.BuildHTML(file, *language, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile)
+	html, err := html.BuildHTML(file, *language, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile, pathsIgnorer)
 	if err != nil {
 		return fmt.Errorf("error on bulding HTML for %s: %w", absPathToSourceFile, err)
 	}
@@ -146,14 +146,14 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 	})
 }
 
-func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache) {
+func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) {
 	wg := sync.WaitGroup{}
 
 	for task := range tasksChan {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile)
+			err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile, pathsIgnorer)
 			if err != nil {
 				log.Printf("Error on building result for path=%s, err=%s", task.relPathToFile, err)
 			} else {
@@ -180,6 +180,6 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 	buildTasks := make(chan buildTask, 1)
 
 	go pushBuildTasks(buildTasks, pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
-	processTasks(buildTasks, buildCache)
+	processTasks(buildTasks, buildCache, pathsIgnorer)
 	return nil
 }
