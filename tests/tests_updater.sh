@@ -7,6 +7,6 @@ for dir in */*/ ; do
 
     if [ -d "$folder_name" ]; then
         echo "Updating test for $folder_name"
-        ../docsncode "$folder_name/project" "$folder_name/expected_result"
+        ../docsncode "$folder_name/project" "$folder_name/expected_result" --cache none
     fi
 done
