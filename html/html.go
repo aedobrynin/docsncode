@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"text/template"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
@@ -17,8 +19,6 @@ import (
 	"docsncode/parsers"
 	"docsncode/pathsignorer"
 )
-
-// TODO(important): порефакторить код с парсингом блоков
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)
 // TODO: не подключать highlight.js, если в файле не будет блоков с кодом
@@ -117,7 +117,27 @@ func buildParsersByLanguage(language cfg.Language) []parsers.CommentParser {
 	return []parsers.CommentParser{}
 }
 
-// TODO(important): игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
+func isCodeBlockContentAllowed(content []byte) bool {
+	if content == nil {
+		return false
+	}
+
+	for i := 0; i < len(content); {
+		r, sz := utf8.DecodeRune(content[i:])
+		if r == utf8.RuneError {
+			log.Printf("Got RunError")
+			return false
+		}
+
+		if !unicode.IsSpace(r) {
+			return true
+		}
+
+		i += sz
+	}
+	return false
+}
+
 // TODO: нужен ли тут bytes.Buffer или достаточно []byte?
 func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) (*bytes.Buffer, error) {
 	blocks := []Block{}
@@ -139,15 +159,15 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 			fmt.Println("Some parser triggered")
 			anyParserTriggered = true
 
-			if current_code_block_content != nil {
+			if isCodeBlockContentAllowed(current_code_block_content) {
 				log.Println("Append current code block")
 				blocks = append(blocks, Block{
-					Type: Code,
-					// TODO: use unsafe?
-					Content: string(current_code_block_content),
+					Type:            Code,
+					Content:         string(current_code_block_content),
+					IndentSpacesCnt: 0,
 				})
-				current_code_block_content = nil
 			}
+			current_code_block_content = nil
 
 			parsingResult, err := parser.Parse(line, scanner)
 			if err != nil {
@@ -180,16 +200,15 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 		}
 	}
 
-	if current_code_block_content != nil {
+	if isCodeBlockContentAllowed(current_code_block_content) {
 		log.Println("Append final code block")
 		blocks = append(blocks, Block{
-			Type: Code,
-			// TODO: use unsafe?
+			Type:            Code,
 			Content:         string(current_code_block_content),
 			IndentSpacesCnt: 0,
 		})
-		current_code_block_content = nil
 	}
+	current_code_block_content = nil
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error on scanning file: %w", err)

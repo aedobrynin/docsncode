@@ -147,3 +147,14 @@ func TestDiagrams(t *testing.T) {
 
 	runTests(t, testCases)
 }
+
+func TestCodeBlocks(t *testing.T) {
+	testCases := []testCase{
+		{
+			name:          "code_blocks/empty_code_blocks",
+			expectedError: nil,
+		},
+	}
+
+	runTests(t, testCases)
+}
