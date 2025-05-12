@@ -160,3 +160,19 @@ func TestCodeBlocks(t *testing.T) {
 
 	runTests(t, testCases)
 }
+
+// Check that unrelated files are removed from result directory
+func TestResultDirectoryCleaning(t *testing.T) {
+	sourceDir := t.TempDir()
+	resultDir := t.TempDir()
+
+	f, err := os.Create(filepath.Join(resultDir, "test.txt"))
+	require.NoError(t, err)
+	f.Close()
+
+	err = buildDocsncode(sourceDir, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
+	require.NoError(t, err)
+
+	err = compare.Dirs(resultDir, t.TempDir())
+	require.NoError(t, err)
+}
