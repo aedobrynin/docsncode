@@ -2,50 +2,76 @@ package cfg
 
 type Language string
 
+const (
+	Ada        Language = "Ada"
+	C          Language = "C"
+	CSharp     Language = "C#"
+	Cpp        Language = "C++"
+	D          Language = "D"
+	Go         Language = "Go"
+	Java       Language = "Java"
+	JavaScript Language = "JavaScript"
+	Lua        Language = "Lua"
+	ObjectiveC Language = "Objective-C"
+	Perl       Language = "Perl"
+	PHP        Language = "PHP"
+	Rust       Language = "Rust"
+	Scala      Language = "Scala"
+	Swift      Language = "Swift"
+	Text       Language = "Text"
+	TypeScript Language = "TypeScript"
+)
+
+type CommentType string
+
+const (
+	CStyle CommentType = "C-style"
+)
+
 // TODO: унести всё в yaml-конфиг
 // TODO: валидация конфига
 var (
 	EXTENSION_TO_LANGUAGE_MAPPING = map[string]Language{
-		".adb":   "ADA",
-		".ads":   "ADA",
-		".c":     "C",
-		".h":     "C",
-		".cs":    "C#",
-		".cpp":   "C++",
-		".hpp":   "C++",
-		".d":     "D",
-		".go":    "Golang",
-		".java":  "Java",
-		".js":    "JavaScript",
-		".lua":   "Lua",
-		".m":     "Objective-C",
-		".pl":    "Perl",
-		".pm":    "Perl",
-		".php":   "PHP",
-		".rs":    "Rust",
-		".scala": "Scala",
-		".swift": "Swift",
-		".txt":   "Text",
-		".ts":    "TypeScript",
+		".adb":   Ada,
+		".ads":   Ada,
+		".c":     C,
+		".h":     C,
+		".cs":    CSharp,
+		".cpp":   Cpp,
+		".hpp":   Cpp,
+		".d":     D,
+		".go":    Go,
+		".java":  Java,
+		".js":    JavaScript,
+		".lua":   Lua,
+		".m":     ObjectiveC,
+		".pl":    Perl,
+		".pm":    Perl,
+		".php":   PHP,
+		".rs":    Rust,
+		".scala": Scala,
+		".swift": Swift,
+		".txt":   Text,
+		".ts":    TypeScript,
 	}
 
 	LANGUAGE_TO_HIGHLIGHT_JS_LANGUAGE_NAME = map[Language]string{
-		"ADA":         "ada",
-		"C":           "c",
-		"C#":          "csharp",
-		"C++":         "c++",
-		"D":           "d",
-		"Golang":      "golang",
-		"Java":        "java",
-		"JavaScript":  "js",
-		"Lua":         "lua",
-		"Objective-C": "objectivec",
-		"Perl":        "perl",
-		"PHP":         "php",
-		"Rust":        "rust",
-		"Scala":       "scala",
-		"Swift":       "swift",
-		"TypeScript":  "ts",
+		Ada:        "ada",
+		C:          "c",
+		CSharp:     "csharp",
+		Cpp:        "c++",
+		D:          "d",
+		Go:         "golang",
+		Java:       "java",
+		JavaScript: "js",
+		Lua:        "lua",
+		ObjectiveC: "objectivec",
+		Perl:       "perl",
+		PHP:        "php",
+		Rust:       "rust",
+		Scala:      "scala",
+		Swift:      "swift",
+		TypeScript: "ts",
 	}
 
 	COMMENT_BLOCK_START_TOKEN = "@docsncode"
@@ -66,4 +92,9 @@ func GetHighlightJSLanguageName(language Language) *string {
 		return nil
 	}
 	return &name
+}
+
+func GetLanguageCommentsType(language Language) CommentType {
+	// TODO(important): support other comment styles
+	return CStyle
 }

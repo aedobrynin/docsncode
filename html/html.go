@@ -88,13 +88,26 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 	return buf.Bytes(), nil
 }
 
-func EscapeHTMLInCodeBlocks(blocks []Block) {
+func escapeHTMLInCodeBlocks(blocks []Block) {
 	for i, _ := range blocks {
 		if blocks[i].Type != Code {
 			continue
 		}
 		blocks[i].Content = template.HTMLEscapeString(blocks[i].Content)
 	}
+}
+
+func buildParsersByLanguage(language cfg.Language) []parsers.CommentParser {
+	commentType := cfg.GetLanguageCommentsType(language)
+	if commentType == cfg.CStyle {
+		return []parsers.CommentParser{
+			parsers.NewCStyleSingleLineCommentBlockParser(),
+			parsers.NewCStyleMultilineCommentBlockParser(),
+		}
+	}
+	// TODO: make log error
+	log.Printf("Unexpected commentType=%s", commentType)
+	return []parsers.CommentParser{}
 }
 
 // TODO(important): игнорировать блоки с кодом, в которых только пробельные символы (см. tests/links/link_to_website)
@@ -105,11 +118,7 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 
 	var current_code_block_content []byte
 
-	// TODO(important): move higher on a call stack
-	parsers := []parsers.CommentParser{
-		parsers.NewCStyleSingleLineCommentBlockParser(),
-		parsers.NewCStyleMultilineCommentBlockParser(),
-	}
+	parsers := buildParsersByLanguage(language)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -179,7 +188,7 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 		return nil, fmt.Errorf("error on scanning file: %w", err)
 	}
 
-	EscapeHTMLInCodeBlocks(blocks)
+	escapeHTMLInCodeBlocks(blocks)
 
 	resultBuf := bytes.NewBuffer([]byte{})
 
