@@ -71,8 +71,8 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 
 	// TODO(important): переделать на нормальную функцию
 	// TODO(important): учитывать pathsIgnorer
-	_, err := cfg.GetLanguageInfo(filepath.Ext(absPath))
-	if err == nil {
+	language := cfg.GetLanguageNameIfSupported(filepath.Ext(absPath))
+	if language != nil {
 		log.Println("path will have result file")
 		resultPath, err := utils.ConvertToPathInResultDir(absPathToProjectRoot, absPath, true, absPathToResultDir)
 		if err != nil {

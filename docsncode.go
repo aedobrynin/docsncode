@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,8 @@ import (
 	"docsncode/pathsignorer"
 	"docsncode/utils"
 )
+
+var ErrLanguageNotSupported = errors.New("Language is not supported")
 
 func createFileAndNeededDirs(path string) (*os.File, error) {
 	err := os.MkdirAll(filepath.Dir(path), 0755)
@@ -32,11 +35,11 @@ func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToR
 	fileExtension := filepath.Ext(absPathToSourceFile)
 	log.Printf("File extension is: %s", fileExtension)
 
-	languageInfo, err := cfg.GetLanguageInfo(fileExtension)
-	if err != nil {
-		return fmt.Errorf("error on getting language info: %w", err)
+	language := cfg.GetLanguageNameIfSupported(fileExtension)
+	if language == nil {
+		return ErrLanguageNotSupported
 	}
-	log.Printf("Building html for %s", languageInfo.Language)
+	log.Printf("Building html for %s", *language)
 
 	file, err := os.Open(absPathToSourceFile)
 	if err != nil {
@@ -44,7 +47,7 @@ func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToR
 	}
 	defer file.Close()
 
-	html, err := html.BuildHTML(file, *languageInfo, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile)
+	html, err := html.BuildHTML(file, *language, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile)
 	if err != nil {
 		return fmt.Errorf("error on bulding HTML for %s: %w", absPathToSourceFile, err)
 	}
