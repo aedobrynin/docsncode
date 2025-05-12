@@ -12,11 +12,11 @@ import (
 	"docsncode/cfg"
 	"docsncode/html"
 	"docsncode/models"
+	"docsncode/paths"
 	"docsncode/pathsignorer"
-	"docsncode/utils"
 )
 
-var ErrLanguageNotSupported = errors.New("Language is not supported")
+var ErrLanguageNotSupported = errors.New("language is not supported")
 
 func createFileAndNeededDirs(path string) (*os.File, error) {
 	err := os.MkdirAll(filepath.Dir(path), 0755)
@@ -31,7 +31,7 @@ func createFileAndNeededDirs(path string) (*os.File, error) {
 	return file, nil
 }
 
-func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile string) error {
+func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) error {
 	fileExtension := filepath.Ext(absPathToSourceFile)
 	log.Printf("File extension is: %s", fileExtension)
 
@@ -47,7 +47,7 @@ func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToR
 	}
 	defer file.Close()
 
-	html, err := html.BuildHTML(file, *language, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile)
+	html, err := html.BuildHTML(file, *language, absPathToProjectRoot, absPathToSourceFile, absPathToResultDir, absPathToResultFile, pathsIgnorer)
 	if err != nil {
 		return fmt.Errorf("error on bulding HTML for %s: %w", absPathToSourceFile, err)
 	}
@@ -71,7 +71,7 @@ type buildTask struct {
 	absPathToSourceFile  string
 	absPathToResultDir   string
 	absPathToResultFile  string
-	relPathToFile        models.RelPathFromProjectRoot
+	relPathToSourceFile  models.RelPathFromProjectRoot
 }
 
 func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) {
@@ -114,7 +114,7 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 
 		log.Printf("start building docsncode for %s", path)
 
-		targetPath, err := utils.ConvertToPathInResultDir(pathToProjectRoot,
+		targetPath, err := paths.ConvertToPathInResultDir(pathToProjectRoot,
 			path,
 			true, // isFile
 			pathToResultDir)
@@ -138,7 +138,7 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 			absPathToSourceFile:  absolutePathToEntry,
 			absPathToResultDir:   pathToResultDir,
 			absPathToResultFile:  targetPath,
-			relPathToFile:        relPathToEntry,
+			relPathToSourceFile:  relPathToEntry,
 		}
 
 		log.Printf("pushed build task for path %s", absolutePathToEntry)
@@ -146,24 +146,68 @@ func pushBuildTasks(tasksChan chan<- buildTask, pathToProjectRoot, pathToResultD
 	})
 }
 
-func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache) {
+func processTasks(tasksChan <-chan buildTask, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) *paths.ProcessedPaths {
 	wg := sync.WaitGroup{}
+	processedPaths := paths.NewProcessedPaths()
 
 	for task := range tasksChan {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
-			err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile)
+			err := buildDocsncodeForFile(task.absPathToProjectRoot, task.absPathToSourceFile, task.absPathToResultDir, task.absPathToResultFile, pathsIgnorer)
 			if err != nil {
-				log.Printf("Error on building result for path=%s, err=%s", task.relPathToFile, err)
+				log.Printf("Error on building result for path=%s, err=%s", task.relPathToSourceFile, err)
 			} else {
-
-				buildCache.StoreSuccessfulBuildResult(task.relPathToFile)
+				relPathToResultFile, err := filepath.Rel(task.absPathToResultDir, task.absPathToResultFile)
+				if err != nil {
+					log.Printf("error on getting relative path from %s to %s: %s", task.absPathToResultDir, task.absPathToResultFile, err)
+					return
+				}
+				processedPaths.Update(models.RelPathFromResultDir(relPathToResultFile))
+				buildCache.StoreSuccessfulBuildResult(task.relPathToSourceFile, models.AbsPath(task.absPathToResultFile))
 			}
 		}()
 	}
 
 	wg.Wait()
+	return processedPaths
+}
+
+func removeUnrelatedPaths(pathToResultDir string, processedPaths *paths.ProcessedPaths) {
+	filepath.WalkDir(pathToResultDir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			log.Printf("error on opening %s: %v", path, err)
+			return err
+		}
+
+		absolutePathToEntry, err := filepath.Abs(path)
+		if err != nil {
+			log.Printf("couldn't get absolute path of %s", path)
+			return filepath.SkipDir
+		}
+
+		if pathToResultDir == absolutePathToEntry {
+			return nil
+		}
+
+		var relPathToEntry models.RelPathFromResultDir
+		{
+			relPath, err := filepath.Rel(pathToResultDir, absolutePathToEntry)
+			if err != nil {
+				log.Printf("error on building rel path to source file: %v", err)
+				return nil
+			}
+			relPathToEntry = models.RelPathFromResultDir(relPath)
+		}
+
+		if (entry.IsDir() && !processedPaths.IsDirProcessed(relPathToEntry)) ||
+			(!entry.IsDir() && !processedPaths.IsFileProcessed(relPathToEntry)) {
+			os.RemoveAll(absolutePathToEntry)
+			log.Printf("Deleted file %s, because it's not supposed to be in the result directory", relPathToEntry)
+		}
+		return nil
+	})
 }
 
 func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
@@ -180,6 +224,7 @@ func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildc
 	buildTasks := make(chan buildTask, 1)
 
 	go pushBuildTasks(buildTasks, pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
-	processTasks(buildTasks, buildCache)
+	processedPaths := processTasks(buildTasks, buildCache, pathsIgnorer)
+	removeUnrelatedPaths(pathToResultDir, processedPaths)
 	return nil
 }

@@ -21,6 +21,8 @@ import (
 // * tests for cache
 // * tests for .docsncodeignore
 // * tests for errors
+// * test remove result file for removed file
+// * test file not related to the project is removed
 
 type testCase struct {
 	name                        string
@@ -146,4 +148,31 @@ func TestDiagrams(t *testing.T) {
 	}
 
 	runTests(t, testCases)
+}
+
+func TestCodeBlocks(t *testing.T) {
+	testCases := []testCase{
+		{
+			name:          "code_blocks/empty_code_blocks",
+			expectedError: nil,
+		},
+	}
+
+	runTests(t, testCases)
+}
+
+// Check that unrelated files are removed from result directory
+func TestResultDirectoryCleaning(t *testing.T) {
+	sourceDir := t.TempDir()
+	resultDir := t.TempDir()
+
+	f, err := os.Create(filepath.Join(resultDir, "test.txt"))
+	require.NoError(t, err)
+	f.Close()
+
+	err = buildDocsncode(sourceDir, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
+	require.NoError(t, err)
+
+	err = compare.Dirs(resultDir, t.TempDir())
+	require.NoError(t, err)
 }

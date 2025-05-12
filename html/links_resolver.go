@@ -10,7 +10,9 @@ import (
 	"github.com/yuin/goldmark/text"
 
 	"docsncode/cfg"
-	"docsncode/utils"
+	"docsncode/models"
+	"docsncode/paths"
+	"docsncode/pathsignorer"
 )
 
 type linksResolverTransformer struct {
@@ -18,6 +20,7 @@ type linksResolverTransformer struct {
 	absPathToCurrentFile string
 	absPathToResultDir   string
 	absPathToResultFile  string
+	pathsIgnorer         pathsignorer.PathsIgnorer
 }
 
 func isURL(str string) bool {
@@ -41,7 +44,15 @@ func isPathNested(parentPath, childPath string) bool {
 	return filepath.IsAbs(childAbsPath) && filepath.HasPrefix(childAbsPath, parentAbsPath)
 }
 
-func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string) []byte {
+func (t *linksResolverTransformer) willThereBeResultFileWithSuchPath(path models.RelPathFromProjectRoot) bool {
+	if t.pathsIgnorer.ShouldIgnore(path) {
+		log.Printf("path=%s is ignored by paths ignorer", path)
+		return false
+	}
+	return cfg.GetLanguageNameIfSupported(filepath.Ext(string(path))) != nil
+}
+
+func (t *linksResolverTransformer) getUpdatedPath(path []byte) []byte {
 	pathString := string(path)
 	if isURL(pathString) {
 		log.Printf("Destination is URL")
@@ -50,7 +61,7 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 
 	absPath := pathString
 	if !filepath.IsAbs(absPath) {
-		absPath = filepath.Join(filepath.Dir(absPathToCurrentFile), absPath)
+		absPath = filepath.Join(filepath.Dir(t.absPathToCurrentFile), absPath)
 	} else {
 		// TODO: make it a warning
 		log.Println("found link with absolute path. It probably won't work on a different host")
@@ -58,10 +69,10 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 
 	log.Printf("absPath=%s", absPath)
 
-	if !isPathNested(absPathToProjectRoot, absPath) {
-		relPath, err := filepath.Rel(filepath.Dir(absPathToResultFile), absPath)
+	if !isPathNested(t.absPathToProjectRoot, absPath) {
+		relPath, err := filepath.Rel(filepath.Dir(t.absPathToResultFile), absPath)
 		if err != nil {
-			log.Printf("error on getting relative path for %s, %s: %s", absPathToResultFile, absPath, err)
+			log.Printf("error on getting relative path for %s, %s: %s", t.absPathToResultFile, absPath, err)
 			return path
 		}
 		return []byte(relPath)
@@ -69,28 +80,31 @@ func getUpdatedPath(path []byte, absPathToProjectRoot, absPathToCurrentFile, abs
 
 	log.Println("path is nested")
 
-	// TODO(important): переделать на нормальную функцию
-	// TODO(important): учитывать pathsIgnorer
-	language := cfg.GetLanguageNameIfSupported(filepath.Ext(absPath))
-	if language != nil {
+	relPathFromProjectRoot, err := filepath.Rel(t.absPathToProjectRoot, absPath)
+	if err != nil {
+		log.Printf("error on getting relative path for %s, %s: %s", t.absPathToProjectRoot, t.absPathToCurrentFile, err)
+		return path
+	}
+
+	if t.willThereBeResultFileWithSuchPath(models.RelPathFromProjectRoot(relPathFromProjectRoot)) {
 		log.Println("path will have result file")
-		resultPath, err := utils.ConvertToPathInResultDir(absPathToProjectRoot, absPath, true, absPathToResultDir)
+		resultPath, err := paths.ConvertToPathInResultDir(t.absPathToProjectRoot, absPath, true, t.absPathToResultDir)
 		if err != nil {
-			log.Printf("error on getting relative path for %s, %s: %s", absPathToResultFile, absPath, err)
+			log.Printf("error on getting relative path for %s, %s: %s", t.absPathToResultFile, absPath, err)
 			return path
 		}
 
-		relResultPath, err := filepath.Rel(filepath.Dir(absPathToResultFile), resultPath)
+		relResultPath, err := filepath.Rel(filepath.Dir(t.absPathToResultFile), resultPath)
 		if err != nil {
-			log.Printf("error on getting relative path for %s, %s: %s", filepath.Dir(absPathToResultFile), resultPath, err)
+			log.Printf("error on getting relative path for %s, %s: %s", filepath.Dir(t.absPathToResultFile), resultPath, err)
 			return path
 		}
 		return []byte(relResultPath)
 	}
 
-	relPath, err := filepath.Rel(absPathToResultDir, absPath)
+	relPath, err := filepath.Rel(t.absPathToResultDir, absPath)
 	if err != nil {
-		log.Printf("error on getting relative path for %s, %s: %s", absPathToResultFile, absPath, err)
+		log.Printf("error on getting relative path for %s, %s: %s", t.absPathToResultFile, absPath, err)
 		return path
 	}
 	return []byte(relPath)
@@ -105,7 +119,7 @@ func (t *linksResolverTransformer) Transform(node *ast.Document, reader text.Rea
 		if node.Kind() == ast.KindImage {
 			img := node.(*ast.Image)
 			log.Printf("Found image with destination=%s", img.Destination)
-			img.Destination = getUpdatedPath(img.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
+			img.Destination = t.getUpdatedPath(img.Destination)
 			log.Printf("Updated destination is %s", img.Destination)
 			return ast.WalkContinue, nil
 		}
@@ -113,7 +127,7 @@ func (t *linksResolverTransformer) Transform(node *ast.Document, reader text.Rea
 		if node.Kind() == ast.KindLink {
 			link := node.(*ast.Link)
 			log.Printf("Found link with destination=%s", link.Destination)
-			link.Destination = getUpdatedPath(link.Destination, t.absPathToProjectRoot, t.absPathToCurrentFile, t.absPathToResultDir, t.absPathToResultFile)
+			link.Destination = t.getUpdatedPath(link.Destination)
 			log.Printf("Updated destination is %s", link.Destination)
 			return ast.WalkContinue, nil
 		}

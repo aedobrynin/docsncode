@@ -13,12 +13,12 @@ func NewForceRebuildCache(storingCache BuildCache) BuildCache {
 	}
 }
 
-func (*ForceRebuildCache) ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool {
+func (*ForceRebuildCache) ShouldBuild(relPathToSourceFile models.RelPathFromProjectRoot) bool {
 	return true
 }
 
-func (c *ForceRebuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot) {
-	c.storingCache.StoreSuccessfulBuildResult(relPathFromProjectRootToFile)
+func (c *ForceRebuildCache) StoreSuccessfulBuildResult(relPathToSourceFile models.RelPathFromProjectRoot, absPathToResultFile models.AbsPath) {
+	c.storingCache.StoreSuccessfulBuildResult(relPathToSourceFile, absPathToResultFile)
 }
 
 func (c *ForceRebuildCache) Dump() error {
