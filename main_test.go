@@ -20,8 +20,7 @@ import (
 // * test allowed extensions
 // * tests for cache
 // * tests for .docsncodeignore
-// tests 1-8 should be duplicated for every programming language with different comments syntax
-// tests for errors
+// * tests for errors
 
 type testCase struct {
 	name                        string
@@ -67,6 +66,21 @@ func TestCStyleComments(t *testing.T) {
 		},
 		{
 			name:          "c_style_comments/file_with_single_line_comment_block_and_code",
+			expectedError: nil,
+		},
+		{
+			name:          "c_style_comments/file_with_multiline_comment_block_and_code",
+			expectedError: nil,
+		},
+	}
+
+	runTests(t, testCases)
+}
+
+func TestPythonStyleComments(t *testing.T) {
+	testCases := []testCase{
+		{
+			name:          "c_style_comments/file_with_code",
 			expectedError: nil,
 		},
 		{

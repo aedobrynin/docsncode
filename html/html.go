@@ -99,10 +99,15 @@ func escapeHTMLInCodeBlocks(blocks []Block) {
 
 func buildParsersByLanguage(language cfg.Language) []parsers.CommentParser {
 	commentType := cfg.GetLanguageCommentsType(language)
-	if commentType == cfg.CStyle {
+	switch commentType {
+	case cfg.CStyle:
 		return []parsers.CommentParser{
 			parsers.NewCStyleSingleLineCommentBlockParser(),
 			parsers.NewCStyleMultilineCommentBlockParser(),
+		}
+	case cfg.PythonStyle:
+		return []parsers.CommentParser{
+			parsers.NewPythonStyleSingleLineCommentBlockParser(),
 		}
 	}
 	// TODO: make log error
