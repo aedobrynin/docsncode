@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"docsncode/models"
-	"docsncode/utils"
+	"docsncode/paths"
 )
 
 type modificationTimeBasedCacheEntry struct {
@@ -52,14 +52,14 @@ func NewModificationTimeBasedBuildCache(absPathToProjectRoot, absPathToResultDir
 	}
 }
 
-func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool {
-	entry, isPresent := c.previousCacheEntries[relPathFromProjectRootToFile]
+func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathToSourceFile models.RelPathFromProjectRoot) bool {
+	entry, isPresent := c.previousCacheEntries[relPathToSourceFile]
 	if !isPresent {
-		log.Printf("didn't find entry with path %s in cache", relPathFromProjectRootToFile)
+		log.Printf("didn't find entry with path %s in cache", relPathToSourceFile)
 		return true
 	}
 
-	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathFromProjectRootToFile))
+	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathToSourceFile))
 	sourceFileModTimestamp := getModTimestamp(absPathToSourceFile)
 	if sourceFileModTimestamp == nil {
 		log.Printf("source file modification timestamp is nil")
@@ -70,7 +70,8 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 		return true
 	}
 
-	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
+	// TODO(important): do not calculate path to result file here
+	absPathToResultFile, err := paths.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
 	if err != nil {
 		log.Printf("Couldn't get abs path to result file: %s", err)
 	}
@@ -85,32 +86,27 @@ func (c *modificationTimeBasedBuildCache) ShouldBuild(relPathFromProjectRootToFi
 		return true
 	}
 
-	c.currentCacheEntries.Store(relPathFromProjectRootToFile, entry)
+	c.currentCacheEntries.Store(relPathToSourceFile, entry)
 
 	return false
 }
 
-func (c *modificationTimeBasedBuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot) {
-	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathFromProjectRootToFile))
+func (c *modificationTimeBasedBuildCache) StoreSuccessfulBuildResult(relPathToSourceFile models.RelPathFromProjectRoot, absPathToResultFile models.AbsPath) {
+	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathToSourceFile))
 	sourceFileModTimestamp := getModTimestamp(absPathToSourceFile)
 	if sourceFileModTimestamp == nil {
 		log.Printf("source file modification timestamp is nil, can't store it in cache")
 		return
 	}
 
-	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
-	if err != nil {
-		log.Printf("Couldn't get abs path to result file: %s", err)
-	}
-
-	resultFileModTimestamp := getModTimestamp(absPathToResultFile)
+	resultFileModTimestamp := getModTimestamp(string(absPathToResultFile))
 	if resultFileModTimestamp == nil {
 		log.Printf("result file modification timestamp is nil, can't store it in cache")
 		return
 	}
 
 	c.currentCacheEntries.Store(
-		relPathFromProjectRootToFile,
+		relPathToSourceFile,
 		modificationTimeBasedCacheEntry{
 			SourceFileModTimestamp: *sourceFileModTimestamp,
 			ResultFileModTimestamp: *resultFileModTimestamp,

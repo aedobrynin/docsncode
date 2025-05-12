@@ -12,7 +12,7 @@ import (
 	"sync"
 
 	"docsncode/models"
-	"docsncode/utils"
+	"docsncode/paths"
 )
 
 type hashBasedCacheEntry struct {
@@ -55,14 +55,14 @@ func NewHashBasedBuildCache(absPathToProjectRoot, absPathToResultDir, absPathToC
 	}
 }
 
-func (c *hashBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool {
-	entry, isPresent := c.previousCacheEntries[relPathFromProjectRootToFile]
+func (c *hashBasedBuildCache) ShouldBuild(relPathToSourceFile models.RelPathFromProjectRoot) bool {
+	entry, isPresent := c.previousCacheEntries[relPathToSourceFile]
 	if !isPresent {
-		log.Printf("didn't find entry with path %s in cache", relPathFromProjectRootToFile)
+		log.Printf("didn't find entry with path %s in cache", relPathToSourceFile)
 		return true
 	}
 
-	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathFromProjectRootToFile))
+	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathToSourceFile))
 	sourceFileHash, err := calculateSHA256(absPathToSourceFile)
 	if err != nil {
 		log.Printf("Couldn't calculate hash of source file, err=%s", err)
@@ -73,7 +73,8 @@ func (c *hashBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.Re
 		return true
 	}
 
-	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
+	// TODO(important): do not calculate path to result file here
+	absPathToResultFile, err := paths.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
 	if err != nil {
 		log.Printf("Couldn't get abs path to result file: %s", err)
 	}
@@ -88,32 +89,27 @@ func (c *hashBasedBuildCache) ShouldBuild(relPathFromProjectRootToFile models.Re
 		return true
 	}
 
-	c.currentCacheEntries.Store(relPathFromProjectRootToFile, entry)
+	c.currentCacheEntries.Store(relPathToSourceFile, entry)
 
 	return false
 }
 
-func (c *hashBasedBuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot) {
-	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathFromProjectRootToFile))
+func (c *hashBasedBuildCache) StoreSuccessfulBuildResult(relPathToSourceFile models.RelPathFromProjectRoot, absPathToResultFile models.AbsPath) {
+	absPathToSourceFile := filepath.Join(c.absPathToProjectRoot, string(relPathToSourceFile))
 	sourceFileHash, err := calculateSHA256(absPathToSourceFile)
 	if err != nil {
 		log.Printf("Couldn't calculate hash of source file, err=%s. Can't store it in cache", err)
 		return
 	}
 
-	absPathToResultFile, err := utils.ConvertToPathInResultDir(c.absPathToProjectRoot, absPathToSourceFile, true, c.absPathToResultDir)
-	if err != nil {
-		log.Printf("Couldn't get abs path to result file: %s", err)
-	}
-
-	resultFileHash, err := calculateSHA256(absPathToResultFile)
+	resultFileHash, err := calculateSHA256(string(absPathToResultFile))
 	if err != nil {
 		log.Printf("Couldn't calculate hash of result file, err=%s. Can't store it in cache", err)
 		return
 	}
 
 	c.currentCacheEntries.Store(
-		relPathFromProjectRootToFile,
+		relPathToSourceFile,
 		hashBasedCacheEntry{
 			SourceFileHash: sourceFileHash,
 			ResultFileHash: resultFileHash,

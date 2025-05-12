@@ -21,6 +21,8 @@ import (
 // * tests for cache
 // * tests for .docsncodeignore
 // * tests for errors
+// * test remove result file for removed file
+// * test file not related to the project is removed
 
 type testCase struct {
 	name                        string

@@ -11,8 +11,8 @@ import (
 
 	"docsncode/cfg"
 	"docsncode/models"
+	"docsncode/paths"
 	"docsncode/pathsignorer"
-	"docsncode/utils"
 )
 
 type linksResolverTransformer struct {
@@ -88,7 +88,7 @@ func (t *linksResolverTransformer) getUpdatedPath(path []byte) []byte {
 
 	if t.willThereBeResultFileWithSuchPath(models.RelPathFromProjectRoot(relPathFromProjectRoot)) {
 		log.Println("path will have result file")
-		resultPath, err := utils.ConvertToPathInResultDir(t.absPathToProjectRoot, absPath, true, t.absPathToResultDir)
+		resultPath, err := paths.ConvertToPathInResultDir(t.absPathToProjectRoot, absPath, true, t.absPathToResultDir)
 		if err != nil {
 			log.Printf("error on getting relative path for %s, %s: %s", t.absPathToResultFile, absPath, err)
 			return path

@@ -9,11 +9,11 @@ func NewAlwaysEmptyBuildCache() BuildCache {
 	return &alwaysEmptyBuildCache{}
 }
 
-func (*alwaysEmptyBuildCache) ShouldBuild(relPathFromProjectRootToFile models.RelPathFromProjectRoot) bool {
+func (*alwaysEmptyBuildCache) ShouldBuild(relPathToSourceFile models.RelPathFromProjectRoot) bool {
 	return true
 }
 
-func (*alwaysEmptyBuildCache) StoreSuccessfulBuildResult(relPathFromProjectRootToFile models.RelPathFromProjectRoot) {
+func (*alwaysEmptyBuildCache) StoreSuccessfulBuildResult(relPathToSourceFile models.RelPathFromProjectRoot, absPathToResultFile models.AbsPath) {
 
 }
 
