@@ -24,7 +24,9 @@ func main() {
 
 ```
 
-You can get a result HTML-file with content ![example result](https://github.com/user-attachments/assets/72da1484-a526-4dc9-81ca-d5b6a8b11bfd)
+You can get a result HTML-file with content
+
+![example result](https://github.com/user-attachments/assets/72da1484-a526-4dc9-81ca-d5b6a8b11bfd)
 
 ## How to build
 
