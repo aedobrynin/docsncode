@@ -17,9 +17,9 @@ import (
 // @docsncode
 // This is a comment block
 //
-// It can contain [links](https://example.com) and images ![cat](images/cat.png)
+// It can contain [links](https://example.com) and images ![cat](internal/images/cat.png)
 //
-// This image is taken from this [file](images/cat.png)
+// This image is taken from this [file](internal/images/cat.png)
 //
 // This [link](https://example.com "link with a title") has a title
 // @docsncode
