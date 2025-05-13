@@ -24,7 +24,7 @@ func main() {
 
 ```
 
-You can get a result HTML-file with content
+You get a result HTML file with content
 
 ![example result](https://github.com/user-attachments/assets/72da1484-a526-4dc9-81ca-d5b6a8b11bfd)
 
@@ -36,7 +36,7 @@ Build requires Go (it's tested with version 1.24.1). Just simply run `go build` 
 
 `./docsncode project result`
 
-There is other run parameters that are described in [docs](TODO).
+There are other run parameters that are described in [docs](TODO).
 
 ## Main features
 
