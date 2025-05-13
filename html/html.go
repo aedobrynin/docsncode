@@ -48,29 +48,26 @@ var htmlTemplate = template.Must(template.New("docsncode").Parse(`<!DOCTYPE html
 `))
 
 type htmlTemplateData struct {
-	Blocks                  []Block
+	Blocks                  []block
 	HighlightJsLanguageName *string
 }
 
-// TODO: make internal
-type BlockType int
+type blockType int
 
 const (
-	Code BlockType = iota
-	Comment
+	code blockType = iota
+	comment
 )
 
 // TODO: растащить на две структуры
-type Block struct {
-	Type            BlockType
+type block struct {
+	Type            blockType
 	Content         string
 	IndentSpacesCnt int
 }
 
 func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) ([]byte, error) {
-	// TODO: не создавать новый конвертер на каждый файл
 	converter := goldmark.New(
-		// TODO: подумать, не нужен ли RenderModeServer?
 		goldmark.WithExtensions(&mermaid.Extender{RenderMode: mermaid.RenderModeClient}),
 		goldmark.WithParserOptions(
 			parser.WithASTTransformers(util.Prioritized(&linksResolverTransformer{
@@ -90,16 +87,16 @@ func convertMarkdownToHTML(md []byte, absPathToProjectRoot, absPathToCurrentFile
 	return buf.Bytes(), nil
 }
 
-func escapeHTMLInCodeBlocks(blocks []Block) {
-	for i, _ := range blocks {
-		if blocks[i].Type != Code {
+func escapeHTMLInCodeBlocks(blocks []block) {
+	for i := range blocks {
+		if blocks[i].Type != code {
 			continue
 		}
 		blocks[i].Content = template.HTMLEscapeString(blocks[i].Content)
 	}
 }
 
-func buildParsersByLanguage(language cfg.Language) []parsers.CommentParser {
+func buildCommentParsersByLanguage(language cfg.Language) []parsers.CommentParser {
 	commentType := cfg.GetLanguageCommentsType(language)
 	switch commentType {
 	case cfg.CStyle:
@@ -138,20 +135,15 @@ func isCodeBlockContentAllowed(content []byte) bool {
 	return false
 }
 
-// TODO: нужен ли тут bytes.Buffer или достаточно []byte?
-func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) (*bytes.Buffer, error) {
-	blocks := []Block{}
-	scanner := bufio.NewScanner(file)
-
+func parseBlocks(scanner *bufio.Scanner, commentParsers []parsers.CommentParser, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) ([]block, error) {
 	var current_code_block_content []byte
-
-	parsers := buildParsersByLanguage(language)
+	blocks := make([]block, 0)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		anyParserTriggered := false
-		for _, parser := range parsers {
+		for _, parser := range commentParsers {
 			if !parser.Trigger(line) {
 				continue
 			}
@@ -161,8 +153,8 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 
 			if isCodeBlockContentAllowed(current_code_block_content) {
 				log.Println("Append current code block")
-				blocks = append(blocks, Block{
-					Type:            Code,
+				blocks = append(blocks, block{
+					Type:            code,
 					Content:         string(current_code_block_content),
 					IndentSpacesCnt: 0,
 				})
@@ -181,8 +173,8 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 				return nil, err
 			}
 
-			blocks = append(blocks, Block{
-				Type:            Comment,
+			blocks = append(blocks, block{
+				Type:            comment,
 				Content:         string(htmlContent),
 				IndentSpacesCnt: parsingResult.BlockIndent,
 			})
@@ -202,8 +194,8 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 
 	if isCodeBlockContentAllowed(current_code_block_content) {
 		log.Println("Append final code block")
-		blocks = append(blocks, Block{
-			Type:            Code,
+		blocks = append(blocks, block{
+			Type:            code,
 			Content:         string(current_code_block_content),
 			IndentSpacesCnt: 0,
 		})
@@ -213,15 +205,25 @@ func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPa
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error on scanning file: %w", err)
 	}
+	return blocks, nil
+}
+
+func BuildHTML(file *os.File, language cfg.Language, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile string, pathsIgnorer pathsignorer.PathsIgnorer) ([]byte, error) {
+	scanner := bufio.NewScanner(file)
+	commentParsers := buildCommentParsersByLanguage(language)
+
+	blocks, err := parseBlocks(scanner, commentParsers, absPathToProjectRoot, absPathToCurrentFile, absPathToResultDir, absPathToResultFile, pathsIgnorer)
+	if err != nil {
+		return nil, fmt.Errorf("error on parsing blocks: %w", err)
+	}
 
 	escapeHTMLInCodeBlocks(blocks)
 
 	resultBuf := bytes.NewBuffer([]byte{})
-
-	err := htmlTemplate.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: cfg.GetHighlightJSLanguageName(language)})
-
+	err = htmlTemplate.Execute(resultBuf, htmlTemplateData{Blocks: blocks, HighlightJsLanguageName: cfg.GetHighlightJSLanguageName(language)})
 	if err != nil {
 		return nil, fmt.Errorf("error on filling HTML template: %w", err)
 	}
-	return resultBuf, nil
+
+	return resultBuf.Bytes(), nil
 }

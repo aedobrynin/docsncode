@@ -59,9 +59,9 @@ func buildDocsncodeForFile(absPathToProjectRoot, absPathToSourceFile, absPathToR
 	defer resultFile.Close()
 
 	// TODO: писать сразу в файл с небольшим буффером?
-	_, err = html.WriteTo(resultFile)
+	_, err = resultFile.Write(html)
 	if err != nil {
-		return fmt.Errorf("error on writing HTML to stdout: %w", err)
+		return fmt.Errorf("error on writing HTML to file: %w", err)
 	}
 	return nil
 }

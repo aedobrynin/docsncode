@@ -87,12 +87,6 @@ func main() {
 
 			log.Printf("path_to_project_root=%s, path_to_result_dir=%s, path_to_cache_file=%s, force_rebuild=%t, cacheType=%s", pathToProjectRoot, pathToResultDir, pathToCacheFile, forceRebuild, cacheType)
 
-			// TODO: правда ли, что это должно происходить тут?
-			err := os.MkdirAll(pathToResultDir, 0755)
-			if err != nil {
-				log.Fatalf("error on creating result directory: %v", err)
-			}
-
 			absPathToProjectRoot, err := filepath.Abs(pathToProjectRoot)
 			if err != nil {
 				log.Fatalf("error on getting abs path to project root: %v", err)
