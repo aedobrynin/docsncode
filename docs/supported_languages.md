@@ -1,0 +1,24 @@
+# Supported Languages
+
+- Ada
+- Bash
+- C
+- C#
+- C++
+- CoffeeScript
+- D
+- F#
+- Go
+- Java
+- JavaScript
+- Lua
+- Objective-C
+- Perl
+- PHP
+- Python (only single line comments)
+- Ruby
+- Rust
+- Scala
+- Swift
+- Text
+- TypeScript
