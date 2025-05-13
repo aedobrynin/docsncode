@@ -7,7 +7,7 @@ import (
 
 	ignore "github.com/sabhiram/go-gitignore"
 
-	"docsncode/models"
+	"docsncode/internal/models"
 )
 
 type goGitignoreBasedPathsIgnorer struct {

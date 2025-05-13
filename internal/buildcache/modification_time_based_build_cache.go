@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"docsncode/models"
-	"docsncode/paths"
+	"docsncode/internal/models"
+	"docsncode/internal/paths"
 )
 
 type modificationTimeBasedCacheEntry struct {

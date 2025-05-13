@@ -1,6 +1,6 @@
 package buildcache
 
-import "docsncode/models"
+import "docsncode/internal/models"
 
 // TODO(important): учитывать версию утилиты в кэше?
 // Например, если в новой версии утилиты меняется отображение для уже существующих элементов,

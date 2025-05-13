@@ -8,9 +8,10 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"docsncode/buildcache"
-	"docsncode/models"
-	"docsncode/pathsignorer"
+	"docsncode/internal/app"
+	"docsncode/internal/buildcache"
+	"docsncode/internal/models"
+	"docsncode/internal/pathsignorer"
 )
 
 // @docsncode
@@ -114,7 +115,7 @@ func main() {
 				log.Fatalf("error on building paths ignorer: %v", err)
 			}
 
-			err = buildDocsncode(pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
+			err = app.BuildDocsncode(pathToProjectRoot, pathToResultDir, buildCache, pathsIgnorer)
 			if err != nil {
 				log.Fatalf("error on building docsncode: %v", err)
 			}

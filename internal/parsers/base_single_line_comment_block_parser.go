@@ -2,7 +2,7 @@ package parsers
 
 import (
 	"bufio"
-	"docsncode/cfg"
+	"docsncode/internal/cfg"
 	"log"
 	"strings"
 	"unicode"

@@ -1,14 +1,16 @@
 package main
 
 import (
-	"docsncode/buildcache"
-	"docsncode/pathsignorer"
 	"os"
 	"path/filepath"
 	"testing"
 
 	compare "github.com/kilianpaquier/compare/pkg"
 	"github.com/stretchr/testify/require"
+
+	"docsncode/internal/app"
+	"docsncode/internal/buildcache"
+	"docsncode/internal/pathsignorer"
 )
 
 // TODO: tests
@@ -46,7 +48,7 @@ func runTests(t *testing.T, testCases []testCase) {
 			}
 
 			// TODO: поддержать кэш в тестах
-			err := buildDocsncode(pathToProjectRoot, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
+			err := app.BuildDocsncode(pathToProjectRoot, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
 
 			require.Equal(t, err, tc.expectedError)
 
@@ -170,7 +172,7 @@ func TestResultDirectoryCleaning(t *testing.T) {
 	require.NoError(t, err)
 	f.Close()
 
-	err = buildDocsncode(sourceDir, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
+	err = app.BuildDocsncode(sourceDir, resultDir, buildcache.NewAlwaysEmptyBuildCache(), pathsignorer.NewAlwaysNotIgnoringPathsIgnorer())
 	require.NoError(t, err)
 
 	err = compare.Dirs(resultDir, t.TempDir())

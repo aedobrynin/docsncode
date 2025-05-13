@@ -9,10 +9,10 @@ import (
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 
-	"docsncode/cfg"
-	"docsncode/models"
-	"docsncode/paths"
-	"docsncode/pathsignorer"
+	"docsncode/internal/cfg"
+	"docsncode/internal/models"
+	"docsncode/internal/paths"
+	"docsncode/internal/pathsignorer"
 )
 
 type linksResolverTransformer struct {

@@ -1,7 +1,7 @@
 package buildcache
 
 import (
-	"docsncode/models"
+	"docsncode/internal/models"
 	"encoding/json"
 	"log"
 	"os"

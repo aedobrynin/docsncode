@@ -1,6 +1,6 @@
 package buildcache
 
-import "docsncode/models"
+import "docsncode/internal/models"
 
 type ForceRebuildCache struct {
 	// this cache will be used for StoreResult and Dump methods

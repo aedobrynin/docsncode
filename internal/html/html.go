@@ -15,9 +15,9 @@ import (
 	"github.com/yuin/goldmark/util"
 	"go.abhg.dev/goldmark/mermaid"
 
-	"docsncode/cfg"
-	"docsncode/parsers"
-	"docsncode/pathsignorer"
+	"docsncode/internal/cfg"
+	"docsncode/internal/parsers"
+	"docsncode/internal/pathsignorer"
 )
 
 // TODO: перестать использовать числовые константы в шаблонах (Code и Comment вместо 0 и 1)

@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"docsncode/models"
+	"docsncode/internal/models"
 )
 
 // Parallel calls to Update is goroutine-safe
