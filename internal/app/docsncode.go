@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"errors"
@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"sync"
 
-	"docsncode/buildcache"
-	"docsncode/cfg"
-	"docsncode/html"
-	"docsncode/models"
-	"docsncode/paths"
-	"docsncode/pathsignorer"
+	"docsncode/internal/buildcache"
+	"docsncode/internal/cfg"
+	"docsncode/internal/html"
+	"docsncode/internal/models"
+	"docsncode/internal/paths"
+	"docsncode/internal/pathsignorer"
 )
 
 var ErrLanguageNotSupported = errors.New("language is not supported")
@@ -210,7 +210,7 @@ func removeUnrelatedPaths(pathToResultDir string, processedPaths *paths.Processe
 	})
 }
 
-func buildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
+func BuildDocsncode(pathToProjectRoot, pathToResultDir string, buildCache buildcache.BuildCache, pathsIgnorer pathsignorer.PathsIgnorer) error {
 	pathToProjectRoot, err := filepath.Abs(pathToProjectRoot)
 	if err != nil {
 		return fmt.Errorf("couldn't get absolute path for project root directory: %w", err)

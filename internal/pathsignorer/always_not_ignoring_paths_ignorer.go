@@ -1,6 +1,6 @@
 package pathsignorer
 
-import "docsncode/models"
+import "docsncode/internal/models"
 
 type AlwaysNotIgnoringPathsIgnorer struct {
 }

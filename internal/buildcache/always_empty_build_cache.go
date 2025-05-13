@@ -1,6 +1,6 @@
 package buildcache
 
-import "docsncode/models"
+import "docsncode/internal/models"
 
 type alwaysEmptyBuildCache struct {
 }
