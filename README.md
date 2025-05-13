@@ -40,8 +40,11 @@ There are other run parameters that are described in [docs](TODO).
 
 ## Main features
 
-TODO: list main features
+- Markdown comment blocks (text styling, images, all other features of markdown)
+- Syntax highlight
+- Mermaid diagrams
+- Results caching
 
 ## Documentation
 
-TODO: add link to documentation
+Documentation is placed [here](docs).
